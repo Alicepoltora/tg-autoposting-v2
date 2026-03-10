@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+.env.local
+.vercel/
+*.session
+*.sqlite
+*.db
+bot_session.*
+
+# Build Folders
+dist/
+temp_deploy*/
+twitter-bot-*/
+
+# Node.js
+node_modules/
+mini-app/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project-specific 
+test_*.py
+*.log
+!mini-app/
+!mini-app/src/
+!mini-app/package.json
+!mini-app/index.html
+!mini-app/vite.config.js

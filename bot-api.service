@@ -1,0 +1,14 @@
+[Unit]
+Description=Telegram Bot Management API
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/telegram-automation
+ExecStart=/root/telegram-automation/venv/bin/python3 /root/telegram-automation/api.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

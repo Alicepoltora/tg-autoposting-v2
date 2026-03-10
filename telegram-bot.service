@@ -1,0 +1,14 @@
+[Unit]
+Description=Telegram to Twitter Forwarding Bot
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/telegram-automation
+ExecStart=/root/telegram-automation/venv/bin/python3 /root/telegram-automation/bot.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
