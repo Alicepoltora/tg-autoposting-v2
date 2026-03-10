@@ -3,220 +3,194 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+  <meta name="theme-color" content="#8b5cf6">
   <title>Bot Manager Pro</title>
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <script src="https://unpkg.com/lucide@latest"></script>
-  <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/@babel/standalone@7.22.5/babel.min.js"></script>
+  <script src="https://unpkg.com/axios@1.4.0/dist/axios.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
   <style>
-    :root {
-      --bg-primary: #0a0a0f;
-      --bg-secondary: rgba(20, 20, 30, 0.8);
-      --accent: #8b5cf6;
-      --accent-light: #a78bfa;
-      --secondary: #f59e0b;
-      --success: #10b981;
-      --danger: #ef4444;
-      --warning: #f97316;
-      --text: #ffffff;
-      --text-dim: #94a3b8;
-      --border: rgba(255, 255, 255, 0.1);
-    }
-    * { box-sizing: border-box; }
-    body { background: var(--bg-primary); color: var(--text); font-family: "Outfit", sans-serif; margin: 0; padding: 16px; }
-    #root { display: flex; justify-content: center; min-height: 100vh; }
-    .container { width: 100%; max-width: 600px; }
-    .header { background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%); padding: 24px; border-radius: 20px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 10px 40px rgba(139, 92, 246, 0.2); }
-    .header h1 { margin: 0; font-size: 24px; font-weight: 700; }
-    .status-badge { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 99px; font-size: 11px; font-weight: 600; background: rgba(255, 255, 255, 0.15); }
-    .status-badge.active { background: rgba(16, 185, 129, 0.3); color: #34d399; }
-    .status-badge.inactive { background: rgba(239, 68, 68, 0.3); color: #fca5a5; }
-    .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
-    .tabs { display: flex; gap: 8px; margin-bottom: 20px; background: var(--bg-secondary); padding: 8px; border-radius: 16px; border: 1px solid var(--border); flex-wrap: wrap; }
-    .tab-button { flex: 1; min-width: 70px; padding: 10px 12px; background: transparent; border: none; color: var(--text-dim); cursor: pointer; border-radius: 12px; font-size: 11px; font-weight: 600; transition: all 0.3s ease; }
-    .tab-button:hover { background: rgba(255, 255, 255, 0.05); color: var(--text); }
-    .tab-button.active { background: var(--accent); color: white; box-shadow: 0 4px 16px rgba(139, 92, 246, 0.3); }
-    .card { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 16px; padding: 20px; margin-bottom: 16px; }
-    .card-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
-    .card-title { font-size: 14px; font-weight: 700; margin: 0; }
-    .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
-    .stat-card { background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(59, 130, 246, 0.1) 100%); border: 1px solid var(--border); border-radius: 12px; padding: 16px; text-align: center; }
-    .stat-value { font-size: 28px; font-weight: 700; color: var(--accent); margin: 8px 0; }
-    .stat-label { font-size: 12px; color: var(--text-dim); margin: 0; }
-    .form-group { margin-bottom: 16px; }
-    label { display: block; font-size: 12px; font-weight: 600; color: var(--text-dim); margin-bottom: 8px; }
-    input, select, textarea { width: 100%; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border); border-radius: 12px; padding: 12px 16px; color: var(--text); font-family: "Outfit", sans-serif; font-size: 14px; outline: none; }
-    input:focus, select:focus, textarea:focus { border-color: var(--accent); background: rgba(139, 92, 246, 0.1); }
-    textarea { resize: vertical; min-height: 80px; }
-    .btn { padding: 12px 20px; border-radius: 12px; border: none; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.3s; display: inline-flex; align-items: center; gap: 8px; font-family: "Outfit", sans-serif; }
-    .btn-primary { background: var(--accent); color: white; width: 100%; }
-    .btn-primary:hover:not(:disabled) { background: var(--accent-light); transform: translateY(-2px); }
-    .btn-secondary { background: var(--secondary); color: white; }
-    .btn-secondary:hover { background: #f08c0b; }
-    .btn-danger { background: var(--danger); color: white; padding: 8px 12px; font-size: 12px; }
-    .btn-danger:hover { background: #f87171; }
-    .btn-sm { padding: 8px 12px; font-size: 12px; }
-    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-    .item-list { display: flex; flex-direction: column; gap: 8px; }
-    .item { background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border); border-radius: 12px; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; }
-    .item:hover { background: rgba(255, 255, 255, 0.08); border-color: var(--accent); }
-    .item-info { flex: 1; font-size: 14px; }
-    .input-group { display: flex; gap: 10px; margin-bottom: 16px; }
-    .input-group input { flex: 1; margin: 0; }
-    .toggle { width: 50px; height: 28px; background: rgba(255, 255, 255, 0.1); border-radius: 14px; cursor: pointer; border: 1px solid var(--border); transition: all 0.3s; position: relative; }
-    .toggle.active { background: var(--success); border-color: var(--success); }
-    .toggle-dot { position: absolute; width: 24px; height: 24px; background: white; border-radius: 12px; top: 2px; left: 2px; transition: left 0.3s; }
-    .toggle.active .toggle-dot { left: 24px; }
-    .loading { text-align: center; padding: 40px 20px; color: var(--text-dim); }
-    .spinner { width: 40px; height: 40px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    .toast { position: fixed; bottom: 20px; right: 20px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 12px; padding: 16px 20px; color: var(--text); max-width: 300px; animation: slideIn 0.3s; z-index: 1000; }
-    .toast.success { border-color: var(--success); background: rgba(16, 185, 129, 0.1); }
-    .toast.error { border-color: var(--danger); background: rgba(239, 68, 68, 0.1); }
-    @keyframes slideIn { from { transform: translateX(400px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-    .log-item { font-size: 12px; padding: 8px 12px; background: rgba(255, 255, 255, 0.02); border-left: 3px solid var(--border); margin-bottom: 8px; font-family: "Monaco", "Courier New", monospace; color: var(--text-dim); }
-    .log-item.error { border-left-color: var(--danger); color: var(--danger); }
+    :root{--bg:#0a0a0f;--card:rgba(20,20,30,0.8);--accent:#8b5cf6;--success:#10b981;--danger:#ef4444;--text:#fff;--text-dim:#94a3b8;--border:rgba(255,255,255,0.1)}
+    *{box-sizing:border-box}
+    body{background:var(--bg);color:var(--text);font-family:Outfit,sans-serif;margin:0;padding:12px}
+    #root{display:flex;justify-content:center;min-height:100vh}
+    .container{width:100%;max-width:600px}
+    .header{background:linear-gradient(135deg,#8b5cf6 0%,#6d28d9 100%);padding:16px;border-radius:16px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 10px 40px rgba(139,92,246,0.2)}
+    .header h1{margin:0;font-size:20px;font-weight:700}
+    .status-badge{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:99px;font-size:11px;font-weight:600;background:rgba(255,255,255,0.15)}
+    .status-badge.active{background:rgba(16,185,129,0.3);color:#34d399}
+    .status-badge.inactive{background:rgba(239,68,68,0.3);color:#fca5a5}
+    .tabs{display:flex;gap:6px;margin-bottom:16px;background:var(--card);padding:6px;border-radius:14px;border:1px solid var(--border);flex-wrap:wrap}
+    .tab-button{flex:1;min-width:60px;padding:8px 10px;background:0;border:0;color:var(--text-dim);cursor:pointer;border-radius:10px;font-size:11px;font-weight:600;transition:all 0.2s}
+    .tab-button:hover{background:rgba(255,255,255,0.05);color:var(--text)}
+    .tab-button.active{background:var(--accent);color:#fff;box-shadow:0 4px 16px rgba(139,92,246,0.3)}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:12px}
+    .card-title{font-size:13px;font-weight:700;margin:0 0 12px}
+    .stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+    .stat-card{background:linear-gradient(135deg,rgba(139,92,246,0.1) 0%,rgba(59,130,246,0.1) 100%);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center}
+    .stat-value{font-size:22px;font-weight:700;color:var(--accent);margin:6px 0}
+    .stat-label{font-size:11px;color:var(--text-dim);margin:0}
+    .form-group{margin-bottom:12px}
+    label{display:block;font-size:11px;font-weight:600;color:var(--text-dim);margin-bottom:6px}
+    input,select,textarea{width:100%;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:var(--text);font-family:Outfit,sans-serif;font-size:13px;outline:0}
+    input:focus,select:focus,textarea:focus{border-color:var(--accent);background:rgba(139,92,246,0.1)}
+    textarea{resize:vertical;min-height:70px}
+    .btn{padding:10px 16px;border-radius:10px;border:0;font-size:12px;font-weight:600;cursor:pointer;transition:all 0.2s;display:inline-flex;align-items:center;gap:6px;font-family:Outfit,sans-serif;width:100%}
+    .btn-primary{background:var(--accent);color:#fff}
+    .btn-primary:hover:not(:disabled){background:#a78bfa;transform:translateY(-1px)}
+    .btn-secondary{background:#f59e0b;color:#fff}
+    .btn-danger{background:var(--danger);color:#fff;padding:6px 10px;font-size:11px;width:auto}
+    .btn:disabled{opacity:0.5;cursor:not-allowed}
+    .item-list{display:flex;flex-direction:column;gap:6px}
+    .item{background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:10px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;font-size:13px}
+    .item:hover{background:rgba(255,255,255,0.08);border-color:var(--accent)}
+    .input-group{display:flex;gap:8px;margin-bottom:12px}
+    .input-group input{flex:1;margin:0}
+    .toggle{width:45px;height:26px;background:rgba(255,255,255,0.1);border-radius:13px;cursor:pointer;border:1px solid var(--border);position:relative}
+    .toggle.active{background:var(--success);border-color:var(--success)}
+    .toggle-dot{position:absolute;width:22px;height:22px;background:#fff;border-radius:11px;top:2px;left:2px;transition:left 0.2s}
+    .toggle.active .toggle-dot{left:21px}
+    .loading{text-align:center;padding:30px 20px;color:var(--text-dim)}
+    .spinner{width:32px;height:32px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 12px}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .skeleton{background:rgba(255,255,255,0.05);border-radius:8px;height:20px;margin:8px 0;animation:pulse 1.5s ease-in-out infinite}
+    @keyframes pulse{0%,100%{opacity:0.5}50%{opacity:1}}
+    .toast{position:fixed;bottom:16px;right:16px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 16px;color:var(--text);max-width:280px;animation:slideIn 0.3s;z-index:1000;font-size:12px}
+    .toast.success{border-color:var(--success);background:rgba(16,185,129,0.1)}
+    .toast.error{border-color:var(--danger);background:rgba(239,68,68,0.1)}
+    @keyframes slideIn{from{transform:translateX(400px);opacity:0}to{transform:translateX(0);opacity:1}}
   </style>
 </head>
 <body>
   <div id="root"></div>
   <script type="text/babel">
-    const { useState, useEffect } = React;
+    const { useState, useEffect, useCallback, useRef } = React;
 
-    const Toast = ({ message, type = "info", visible }) => {
-      if (!visible) return null;
-      return <div className={}>{message}</div>;
-    };
+    const Toast = ({ message, type, visible }) => visible ? <div className={}>{message}</div> : null;
 
     const App = () => {
-      const [activeTab, setActiveTab] = useState("dashboard");
+      const [activeTab, setActiveTab] = useState('dashboard');
       const [config, setConfig] = useState(null);
-      const [status, setStatus] = useState("checking");
+      const [status, setStatus] = useState('checking');
       const [stats, setStats] = useState(null);
-      const [logs, setLogs] = useState([]);
-      const [recentMessages, setRecentMessages] = useState([]);
-      const [newSource, setNewSource] = useState("");
+      const [newSource, setNewSource] = useState('');
       const [saving, setSaving] = useState(false);
       const [loading, setLoading] = useState(true);
       const [toast, setToast] = useState(null);
+      const cacheRef = useRef({});
 
-      const showToast = (message, type = "info") => {
+      const showToast = (message, type = 'info') => {
         setToast({ message, type });
-        setTimeout(() => setToast(null), 3000);
+        setTimeout(() => setToast(null), 2500);
       };
 
-      const fetchData = async () => {
+      const fetchData = useCallback(async () => {
         try {
           setLoading(true);
-          const [confRes, statusRes, statsRes, logsRes, messagesRes] = await Promise.all([
-            axios.get("/config"),
-            axios.get("/status"),
-            axios.get("/stats"),
-            axios.get("/logs"),
-            axios.get("/recent-messages")
-          ]);
-          setConfig(confRes.data);
-          setStatus(statusRes.data.status);
-          setStats(statsRes.data);
-          setLogs(logsRes.data.logs || []);
-          setRecentMessages(messagesRes.data.messages || []);
+          const requests = [];
+          
+          // Параллельная загрузка только необходимых данных для текущей вкладки
+          requests.push(axios.get('/config'));
+          requests.push(axios.get('/status'));
+          if (activeTab === 'dashboard') {
+            requests.push(axios.get('/stats'));
+          }
+          
+          const responses = await Promise.all(requests);
+          setConfig(responses[0].data);
+          setStatus(responses[1].data.status);
+          if (responses[2]) {
+            setStats(responses[2].data);
+          }
           setLoading(false);
         } catch (e) {
           console.error(e);
-          setStatus("offline");
-          showToast("Ошибка подключения", "error");
+          showToast('Ошибка подключения', 'error');
           setLoading(false);
         }
-      };
+      }, [activeTab]);
 
       useEffect(() => {
         fetchData();
-        const interval = setInterval(fetchData, 10000);
+        const interval = setInterval(fetchData, 15000);
         return () => clearInterval(interval);
-      }, []);
+      }, [fetchData]);
 
       const saveConfig = async () => {
         setSaving(true);
         try {
-          await axios.post("/config", config);
-          showToast("Конфигурация сохранена", "success");
-          await axios.post("/restart");
-          showToast("Бот перезагружен", "success");
-          setTimeout(() => {
-            setSaving(false);
-            fetchData();
-          }, 2000);
+          await axios.post('/config', config);
+          showToast('Сохранено ✓', 'success');
+          setTimeout(() => setSaving(false), 1000);
         } catch (e) {
-          showToast("Ошибка сохранения", "error");
+          showToast('Ошибка сохранения', 'error');
           setSaving(false);
         }
       };
 
       if (loading || !config) {
-        return <div className="container"><div className="loading"><div className="spinner"></div><p>Загрузка...</p></div></div>;
+        return (
+          <div className="container">
+            <div className="loading">
+              <div className="spinner"></div>
+              <p>Загрузка...</p>
+            </div>
+          </div>
+        );
       }
 
-      const isActive = status === "active" || status === "running";
+      const isActive = status === 'active' || status === 'running';
 
       return (
         <div className="container">
           <div className="header">
             <div>
-              <h1>🤖 Bot Manager Pro</h1>
+              <h1>🤖 Bot Manager</h1>
               <div className={}>
-                <span className="status-dot" style={{background: isActive ? "#10b981" : "#ef4444"}}></span>
-                {isActive ? "АКТИВЕН" : "НЕАКТИВЕН"}
+                <span style={{width:6,height:6,borderRadius:'50%',display:'inline-block',background:isActive?'#10b981':'#ef4444'}}></span>
+                {isActive ? 'АКТИВЕН' : 'НЕАКТИВЕН'}
               </div>
             </div>
-            <button className="btn btn-sm btn-secondary" onClick={fetchData}>↻ Обновить</button>
+            <button className="btn btn-secondary" style={{width:'auto',padding:'6px 10px'}} onClick={fetchData}>↻</button>
           </div>
 
           <div className="tabs">
-            <button className={} onClick={() => setActiveTab("dashboard")}>📊</button>
-            <button className={} onClick={() => setActiveTab("sources")}>📡</button>
-            <button className={} onClick={() => setActiveTab("rules")}>🔧</button>
-            <button className={} onClick={() => setActiveTab("settings")}>⚙️</button>
-            <button className={} onClick={() => setActiveTab("logs")}>📝</button>
+            <button className={} onClick={() => setActiveTab('dashboard')}>📊</button>
+            <button className={} onClick={() => setActiveTab('sources')}>📡</button>
+            <button className={} onClick={() => setActiveTab('rules')}>🔧</button>
+            <button className={} onClick={() => setActiveTab('settings')}>⚙️</button>
           </div>
 
-          {activeTab === "dashboard" && (
+          {activeTab === 'dashboard' && (
             <div>
               <div className="stats-grid">
-                <div className="stat-card"><p className="stat-label">Обработано (24ч)</p><div className="stat-value">{stats?.messages_processed_24h || 0}</div></div>
+                <div className="stat-card"><p className="stat-label">За 24ч</p><div className="stat-value">{stats?.messages_processed_24h || 0}</div></div>
                 <div className="stat-card"><p className="stat-label">Всего</p><div className="stat-value">{stats?.messages_total || 0}</div></div>
               </div>
-              <div className="card"><p style={{margin: 0, color: isActive ? "#10b981" : "#ef4444"}}>{isActive ? "✓ Бот активен" : "✗ Бот неактивен"}</p></div>
-              <div className="card"><h3 className="card-title">Последние сообщения</h3><div className="item-list">{recentMessages.slice(0, 5).map((msg, i) => <div className="item" key={i}><div className="item-info">ID: {msg.message_id}</div></div>) || "Нет данных"}</div></div>
+              <div className="card"><p style={{margin:0,color:isActive?'#10b981':'#ef4444'}}>{isActive ? '✓ Бот активен' : '✗ Неактивен'}</p></div>
             </div>
           )}
 
-          {activeTab === "sources" && (
+          {activeTab === 'sources' && (
             <div>
-              <div className="card"><h3 className="card-title">Добавить источник</h3><div className="input-group"><input type="text" placeholder="@channel" value={newSource} onChange={e => setNewSource(e.target.value)} /><button className="btn btn-primary" style={{flex: 0}} onClick={() => {if (newSource.trim()) {setConfig({...config, sources: [...config.sources, newSource]}); setNewSource("");}}}>+</button></div></div>
-              <div className="card"><h3 className="card-title">Источники ({config.sources.length})</h3><div className="item-list">{config.sources.map((src, i) => <div className="item" key={i}><span>{src}</span><button className="btn btn-danger" onClick={() => setConfig({...config, sources: config.sources.filter((_, idx) => idx !== i)})}>🗑️</button></div>)}</div></div>
-              <div className="card"><h3 className="card-title">Целевой канал</h3><input type="text" value={config.target} onChange={e => setConfig({...config, target: e.target.value})} placeholder="@target" /></div>
-              <button className="btn btn-primary" onClick={saveConfig} disabled={saving}>{saving ? "Сохранение..." : "Сохранить"}</button>
+              <div className="card"><h3 className="card-title">Добавить</h3><div className="input-group"><input type="text" placeholder="@channel" value={newSource} onChange={e => setNewSource(e.target.value)} /><button className="btn btn-primary" style={{flex:0,width:'auto'}} onClick={() => {if (newSource.trim()) {setConfig({...config, sources: [...config.sources, newSource]}); setNewSource('');}}} >+</button></div></div>
+              <div className="card"><h3 className="card-title">Источники ({config.sources.length})</h3><div className="item-list">{config.sources.map((src, i) => <div className="item" key={i}><span>{src}</span><button className="btn btn-danger" onClick={() => setConfig({...config, sources: config.sources.filter((_, idx) => idx !== i)})}>✕</button></div>)}</div></div>
+              <div className="card"><h3 className="card-title">Целевой</h3><input type="text" value={config.target} onChange={e => setConfig({...config, target: e.target.value})} placeholder="@target" /></div>
+              <button className="btn btn-primary" onClick={saveConfig} disabled={saving}>{saving ? '...' : 'Сохранить'}</button>
             </div>
           )}
 
-          {activeTab === "rules" && (
+          {activeTab === 'rules' && (
             <div>
-              <div className="card"><h3 className="card-title">Правила очистки ({config.cleaning_rules.length})</h3><div className="item-list">{config.cleaning_rules.map((rule, i) => <div className="item" key={i}><div className="item-info"><small style={{color: "var(--text-dim)"}}>{rule.pattern}</small></div><button className="btn btn-danger btn-sm" onClick={() => setConfig({...config, cleaning_rules: config.cleaning_rules.filter((_, idx) => idx !== i)})}>🗑️</button></div>)}</div></div>
+              <div className="card"><h3 className="card-title">Правила ({config.cleaning_rules.length})</h3><div className="item-list">{config.cleaning_rules.map((rule, i) => <div className="item" key={i}><div style={{fontSize:11,color:'var(--text-dim)'}}>{rule.pattern}</div><button className="btn btn-danger" onClick={() => setConfig({...config, cleaning_rules: config.cleaning_rules.filter((_, idx) => idx !== i)})}>✕</button></div>)}</div></div>
             </div>
           )}
 
-          {activeTab === "settings" && (
+          {activeTab === 'settings' && (
             <div>
-              <div className="card"><h3 className="card-title">Основные</h3><div className="form-group"><label>Автоперевод</label><div style={{display: "flex", alignItems: "center", gap: "12px"}}><div className={} onClick={() => setConfig({...config, auto_translate: !config.auto_translate})}><div className="toggle-dot"></div></div></div></div></div>
-              <div className="card"><button className="btn btn-secondary" onClick={() => {axios.post("/restart").then(() => {showToast("Перезагружено", "success"); setTimeout(fetchData, 2000);});}}>🔄 Перезагрузить</button></div>
-            </div>
-          )}
-
-          {activeTab === "logs" && (
-            <div>
-              <div className="card"><h3 className="card-title">Логи</h3><div style={{maxHeight: "400px", overflowY: "auto"}}>{logs.length > 0 ? logs.map((log, i) => <div key={i} className="log-item">{log.message}</div>) : "Нет логов"}</div></div>
+              <div className="card"><h3 className="card-title">Основные</h3><div className="form-group"><label>Автоперевод</label><div style={{display:'flex',alignItems:'center',gap:'10px'}}><div className={} onClick={() => setConfig({...config, auto_translate: !config.auto_translate})}><div className="toggle-dot"></div></div></div></div></div>
+              <div className="card"><button className="btn btn-secondary" onClick={() => {axios.post('/restart').then(() => {showToast('Перезагружено', 'success'); setTimeout(fetchData, 2000);}).catch(() => showToast('Ошибка', 'error'));}} >🔄 Перезагрузить</button></div>
             </div>
           )}
 
@@ -225,7 +199,7 @@
       );
     };
 
-    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
   </script>
 </body>
 </html>
