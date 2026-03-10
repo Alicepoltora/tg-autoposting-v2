@@ -1,20 +1,16 @@
 import subprocess
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from typing import List, Dict, Optional
+from typing import List, Dict
 import config_manager
 from database import Database
 from datetime import datetime, timedelta
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 import os
 import logging
 
-# Setup logging to capture logs
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Telegram Bot Management API")
@@ -39,8 +35,8 @@ def get_gui():
     try:
         with open("index.html", "r", encoding="utf-8") as f:
             return f.read()
-    except Exception:
-        return "<h1>Index.html not found</h1>"
+    except Exception as e:
+        return f"<h1>Error loading interface: {e}</h1>"
 
 @app.get("/status")
 def get_status():
@@ -55,13 +51,11 @@ def get_status():
 
 @app.get("/stats")
 def get_stats(hours: int = 24):
-    """Get statistics about messages processed"""
     try:
         import sqlite3
         conn = sqlite3.connect(db.db_path)
         cursor = conn.cursor()
         
-        # Messages processed in the specified period
         since = datetime.now() - timedelta(hours=hours)
         cursor.execute(
             "SELECT COUNT(*) FROM processed_messages WHERE timestamp > ?",
@@ -69,26 +63,15 @@ def get_stats(hours: int = 24):
         )
         messages_processed = cursor.fetchone()[0]
         
-        # Total messages
         cursor.execute("SELECT COUNT(*) FROM processed_messages")
         messages_total = cursor.fetchone()[0]
-        
-        # Get bot uptime (from process)
-        try:
-            result = subprocess.run(
-                ["systemctl", "show", "telegram-bot", "-p", "ActiveEnterTimestamp"],
-                capture_output=True, text=True
-            )
-            uptime_str = "Unknown"
-        except:
-            uptime_str = "Unknown"
         
         conn.close()
         
         return {
             "messages_processed_24h": messages_processed,
             "messages_total": messages_total,
-            "uptime": uptime_str,
+            "uptime": "Unknown",
             "last_update": datetime.now().isoformat(),
             "status": "operational"
         }
@@ -104,7 +87,6 @@ def get_stats(hours: int = 24):
 
 @app.get("/logs")
 def get_logs(limit: int = 50):
-    """Get recent bot logs"""
     try:
         result = subprocess.run(
             ["journalctl", "-u", "telegram-bot", "-n", str(limit), "--no-pager", "-o", "json"],
@@ -125,14 +107,13 @@ def get_logs(limit: int = 50):
                 except:
                     pass
         
-        return {"logs": logs[::-1]}  # Reverse to show newest first
+        return {"logs": logs[::-1]}
     except Exception as e:
         logger.error(f"Logs error: {e}")
         return {"logs": [], "error": str(e)}
 
 @app.get("/recent-messages")
 def get_recent_messages(limit: int = 10):
-    """Get recently processed messages"""
     try:
         import sqlite3
         conn = sqlite3.connect(db.db_path)
@@ -184,4 +165,4 @@ def restart_bot():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=80)
+    uvicorn.run(app, host="127.0.0.1", port=8000)
