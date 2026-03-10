@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="ru">
-
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
@@ -13,336 +12,220 @@
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg-color: #0a0a0f;
-      --card-bg: rgba(20, 20, 30, 0.8);
+      --bg-primary: #0a0a0f;
+      --bg-secondary: rgba(20, 20, 30, 0.8);
       --accent: #8b5cf6;
+      --accent-light: #a78bfa;
       --secondary: #f59e0b;
+      --success: #10b981;
+      --danger: #ef4444;
+      --warning: #f97316;
       --text: #ffffff;
       --text-dim: #94a3b8;
       --border: rgba(255, 255, 255, 0.1);
-      --success: #10b981;
-      --danger: #ef4444;
     }
-
-    body {
-      background: var(--bg-color);
-      color: var(--text);
-      font-family: 'Outfit', sans-serif;
-      margin: 0;
-      padding: 16px;
-      display: flex;
-      justify-content: center;
-    }
-
-    #root {
-      width: 100%;
-      max-width: 500px;
-    }
-
-    .glass-card {
-      background: var(--card-bg);
-      backdrop-filter: blur(16px);
-      border: 1px solid var(--border);
-      border-radius: 24px;
-      padding: 24px;
-      margin-bottom: 20px;
-      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
-    }
-
-    h1 {
-      font-size: 28px;
-      margin: 0 0 8px 0;
-      background: linear-gradient(to right, #fff, var(--accent));
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-
-    .status-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 6px 12px;
-      border-radius: 99px;
-      font-size: 12px;
-      font-weight: 600;
-    }
-
-    .status-active {
-      background: rgba(16, 185, 129, 0.2);
-      color: var(--success);
-    }
-
-    .status-inactive {
-      background: rgba(239, 68, 68, 0.2);
-      color: var(--danger);
-    }
-
-    .input-group {
-      display: flex;
-      gap: 10px;
-      margin-bottom: 16px;
-    }
-
-    input {
-      flex: 1;
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 12px 16px;
-      color: white;
-      outline: none;
-      transition: 0.2s;
-    }
-
-    input:focus {
-      border-color: var(--accent);
-    }
-
-    button {
-      border: none;
-      border-radius: 14px;
-      padding: 12px 20px;
-      font-weight: 600;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      transition: 0.2s;
-    }
-
-    .btn-primary {
-      background: var(--accent);
-      color: white;
-    }
-
-    .btn-primary:active {
-      transform: scale(0.95);
-      opacity: 0.9;
-    }
-
-    .btn-ghost {
-      background: transparent;
-      color: var(--text-dim);
-    }
-
-    .btn-danger {
-      background: rgba(239, 68, 68, 0.1);
-      color: var(--danger);
-    }
-
-    .item-list {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-
-    .item {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      background: rgba(255, 255, 255, 0.03);
-      padding: 12px 16px;
-      border-radius: 16px;
-      border: 1px solid transparent;
-    }
-
-    .item:hover {
-      border-color: var(--border);
-    }
-
-    .rule-item {
-      flex-direction: column;
-      align-items: flex-start;
-    }
-
-    .rule-header {
-      display: flex;
-      justify-content: space-between;
-      width: 100%;
-      margin-bottom: 4px;
-    }
-
-    code {
-      color: var(--secondary);
-      font-family: monospace;
-    }
-
-    .footer-action {
-      position: sticky;
-      bottom: 20px;
-      margin-top: 40px;
-    }
-
-    .save-btn {
-      width: 100%;
-      padding: 18px;
-      font-size: 16px;
-      justify-content: center;
-      box-shadow: 0 10px 20px rgba(139, 92, 246, 0.3);
-    }
-
-    .loader {
-      width: 24px;
-      height: 24px;
-      border: 3px solid rgba(255, 255, 255, 0.3);
-      border-top-color: white;
-      border-radius: 50%;
-      animation: spin 1s infinite linear;
-    }
-
-    @keyframes spin {
-      to {
-        transform: rotate(360deg);
-      }
-    }
+    * { box-sizing: border-box; }
+    body { background: var(--bg-primary); color: var(--text); font-family: "Outfit", sans-serif; margin: 0; padding: 16px; }
+    #root { display: flex; justify-content: center; min-height: 100vh; }
+    .container { width: 100%; max-width: 600px; }
+    .header { background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%); padding: 24px; border-radius: 20px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 10px 40px rgba(139, 92, 246, 0.2); }
+    .header h1 { margin: 0; font-size: 24px; font-weight: 700; }
+    .status-badge { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 99px; font-size: 11px; font-weight: 600; background: rgba(255, 255, 255, 0.15); }
+    .status-badge.active { background: rgba(16, 185, 129, 0.3); color: #34d399; }
+    .status-badge.inactive { background: rgba(239, 68, 68, 0.3); color: #fca5a5; }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+    .tabs { display: flex; gap: 8px; margin-bottom: 20px; background: var(--bg-secondary); padding: 8px; border-radius: 16px; border: 1px solid var(--border); flex-wrap: wrap; }
+    .tab-button { flex: 1; min-width: 70px; padding: 10px 12px; background: transparent; border: none; color: var(--text-dim); cursor: pointer; border-radius: 12px; font-size: 11px; font-weight: 600; transition: all 0.3s ease; }
+    .tab-button:hover { background: rgba(255, 255, 255, 0.05); color: var(--text); }
+    .tab-button.active { background: var(--accent); color: white; box-shadow: 0 4px 16px rgba(139, 92, 246, 0.3); }
+    .card { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 16px; padding: 20px; margin-bottom: 16px; }
+    .card-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+    .card-title { font-size: 14px; font-weight: 700; margin: 0; }
+    .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+    .stat-card { background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(59, 130, 246, 0.1) 100%); border: 1px solid var(--border); border-radius: 12px; padding: 16px; text-align: center; }
+    .stat-value { font-size: 28px; font-weight: 700; color: var(--accent); margin: 8px 0; }
+    .stat-label { font-size: 12px; color: var(--text-dim); margin: 0; }
+    .form-group { margin-bottom: 16px; }
+    label { display: block; font-size: 12px; font-weight: 600; color: var(--text-dim); margin-bottom: 8px; }
+    input, select, textarea { width: 100%; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border); border-radius: 12px; padding: 12px 16px; color: var(--text); font-family: "Outfit", sans-serif; font-size: 14px; outline: none; }
+    input:focus, select:focus, textarea:focus { border-color: var(--accent); background: rgba(139, 92, 246, 0.1); }
+    textarea { resize: vertical; min-height: 80px; }
+    .btn { padding: 12px 20px; border-radius: 12px; border: none; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.3s; display: inline-flex; align-items: center; gap: 8px; font-family: "Outfit", sans-serif; }
+    .btn-primary { background: var(--accent); color: white; width: 100%; }
+    .btn-primary:hover:not(:disabled) { background: var(--accent-light); transform: translateY(-2px); }
+    .btn-secondary { background: var(--secondary); color: white; }
+    .btn-secondary:hover { background: #f08c0b; }
+    .btn-danger { background: var(--danger); color: white; padding: 8px 12px; font-size: 12px; }
+    .btn-danger:hover { background: #f87171; }
+    .btn-sm { padding: 8px 12px; font-size: 12px; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .item-list { display: flex; flex-direction: column; gap: 8px; }
+    .item { background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border); border-radius: 12px; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; }
+    .item:hover { background: rgba(255, 255, 255, 0.08); border-color: var(--accent); }
+    .item-info { flex: 1; font-size: 14px; }
+    .input-group { display: flex; gap: 10px; margin-bottom: 16px; }
+    .input-group input { flex: 1; margin: 0; }
+    .toggle { width: 50px; height: 28px; background: rgba(255, 255, 255, 0.1); border-radius: 14px; cursor: pointer; border: 1px solid var(--border); transition: all 0.3s; position: relative; }
+    .toggle.active { background: var(--success); border-color: var(--success); }
+    .toggle-dot { position: absolute; width: 24px; height: 24px; background: white; border-radius: 12px; top: 2px; left: 2px; transition: left 0.3s; }
+    .toggle.active .toggle-dot { left: 24px; }
+    .loading { text-align: center; padding: 40px 20px; color: var(--text-dim); }
+    .spinner { width: 40px; height: 40px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .toast { position: fixed; bottom: 20px; right: 20px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 12px; padding: 16px 20px; color: var(--text); max-width: 300px; animation: slideIn 0.3s; z-index: 1000; }
+    .toast.success { border-color: var(--success); background: rgba(16, 185, 129, 0.1); }
+    .toast.error { border-color: var(--danger); background: rgba(239, 68, 68, 0.1); }
+    @keyframes slideIn { from { transform: translateX(400px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    .log-item { font-size: 12px; padding: 8px 12px; background: rgba(255, 255, 255, 0.02); border-left: 3px solid var(--border); margin-bottom: 8px; font-family: "Monaco", "Courier New", monospace; color: var(--text-dim); }
+    .log-item.error { border-left-color: var(--danger); color: var(--danger); }
   </style>
 </head>
-
 <body>
   <div id="root"></div>
-
   <script type="text/babel">
     const { useState, useEffect } = React;
 
+    const Toast = ({ message, type = "info", visible }) => {
+      if (!visible) return null;
+      return <div className={}>{message}</div>;
+    };
+
     const App = () => {
+      const [activeTab, setActiveTab] = useState("dashboard");
       const [config, setConfig] = useState(null);
-      const [status, setStatus] = useState('checking...');
-      const [newSource, setNewSource] = useState('');
+      const [status, setStatus] = useState("checking");
+      const [stats, setStats] = useState(null);
+      const [logs, setLogs] = useState([]);
+      const [recentMessages, setRecentMessages] = useState([]);
+      const [newSource, setNewSource] = useState("");
       const [saving, setSaving] = useState(false);
-      const [restarting, setRestarting] = useState(false);
+      const [loading, setLoading] = useState(true);
+      const [toast, setToast] = useState(null);
 
-      const API = ""; // Backend works on same host/port in this setup
-
-      useEffect(() => {
-        fetchData();
-      }, []);
+      const showToast = (message, type = "info") => {
+        setToast({ message, type });
+        setTimeout(() => setToast(null), 3000);
+      };
 
       const fetchData = async () => {
         try {
-          const [conf, stat] = await Promise.all([
-            axios.get('/config'),
-            axios.get('/status')
+          setLoading(true);
+          const [confRes, statusRes, statsRes, logsRes, messagesRes] = await Promise.all([
+            axios.get("/config"),
+            axios.get("/status"),
+            axios.get("/stats"),
+            axios.get("/logs"),
+            axios.get("/recent-messages")
           ]);
-          setConfig(conf.data);
-          setStatus(stat.data.status);
+          setConfig(confRes.data);
+          setStatus(statusRes.data.status);
+          setStats(statsRes.data);
+          setLogs(logsRes.data.logs || []);
+          setRecentMessages(messagesRes.data.messages || []);
+          setLoading(false);
         } catch (e) {
           console.error(e);
-          setStatus('offline');
+          setStatus("offline");
+          showToast("Ошибка подключения", "error");
+          setLoading(false);
         }
       };
+
+      useEffect(() => {
+        fetchData();
+        const interval = setInterval(fetchData, 10000);
+        return () => clearInterval(interval);
+      }, []);
 
       const saveConfig = async () => {
         setSaving(true);
         try {
-          await axios.post('/config', config);
-          await axios.post('/restart');
-          setRestarting(true);
+          await axios.post("/config", config);
+          showToast("Конфигурация сохранена", "success");
+          await axios.post("/restart");
+          showToast("Бот перезагружен", "success");
           setTimeout(() => {
-            setRestarting(false);
             setSaving(false);
             fetchData();
-          }, 3000);
+          }, 2000);
         } catch (e) {
-          alert('Ошибка сохранения');
+          showToast("Ошибка сохранения", "error");
           setSaving(false);
         }
       };
 
-      if (!config) return <div style={{ display: 'flex', justifyContent: 'center', marginTop: '100px' }}><div className="loader"></div></div>;
+      if (loading || !config) {
+        return <div className="container"><div className="loading"><div className="spinner"></div><p>Загрузка...</p></div></div>;
+      }
+
+      const isActive = status === "active" || status === "running";
 
       return (
-        <div>
-          <header className="glass-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div className="container">
+          <div className="header">
             <div>
-              <h1>Iranium Pro</h1>
-              <div className={`status-badge ${status === 'active' ? 'status-active' : 'status-inactive'}`}>
-                <div style={{ width: 8, height: 8, background: 'currentColor', borderRadius: '50%' }}></div>
-                {status.toUpperCase()}
+              <h1>🤖 Bot Manager Pro</h1>
+              <div className={}>
+                <span className="status-dot" style={{background: isActive ? "#10b981" : "#ef4444"}}></span>
+                {isActive ? "АКТИВЕН" : "НЕАКТИВЕН"}
               </div>
             </div>
-            <button className="btn-ghost" onClick={fetchData}>
-              <i data-lucide="refresh-cw" className={restarting ? 'loader' : ''}></i>
-            </button>
-          </header>
-
-          <div className="glass-card">
-            <h3>Источники</h3>
-            <div className="input-group">
-              <input
-                placeholder="@channel"
-                value={newSource}
-                onChange={e => setNewSource(e.target.value)}
-              />
-              <button className="btn-primary" onClick={() => {
-                if (!newSource) return;
-                setConfig({ ...config, sources: [...config.sources, newSource] });
-                setNewSource('');
-                setTimeout(() => lucide.createIcons(), 10);
-              }}>
-                <i data-lucide="plus"></i>
-              </button>
-            </div>
-            <div className="item-list">
-              {config.sources.map((src, i) => (
-                <div className="item" key={i}>
-                  <span>{src}</span>
-                  <button className="btn-ghost" style={{ color: 'var(--danger)' }} onClick={() => {
-                    setConfig({ ...config, sources: config.sources.filter((_, idx) => idx !== i) });
-                  }}>
-                    <i data-lucide="trash-2"></i>
-                  </button>
-                </div>
-              ))}
-            </div>
+            <button className="btn btn-sm btn-secondary" onClick={fetchData}>↻ Обновить</button>
           </div>
 
-          <div className="glass-card">
-            <h3>Правила очистки</h3>
-            <div className="item-list">
-              {config.cleaning_rules.map((rule, i) => (
-                <div className="item rule-item" key={i}>
-                  <div className="rule-header">
-                    <code>{rule.pattern}</code>
-                    <button className="btn-ghost" style={{ color: 'var(--danger)' }} onClick={() => {
-                      const rules = [...config.cleaning_rules];
-                      rules.splice(i, 1);
-                      setConfig({ ...config, cleaning_rules: rules });
-                    }}>
-                      <i data-lucide="trash-2"></i>
-                    </button>
-                  </div>
-                  <span style={{ fontSize: '13px', color: 'var(--text-dim)' }}>
-                    → {rule.replacement || '[удаляется]'}
-                  </span>
-                </div>
-              ))}
-            </div>
-            <button className="btn-ghost" style={{ width: '100%', marginTop: '12px', color: 'var(--accent)' }} onClick={() => {
-              const p = prompt('Регулярное выражение (Pattern):');
-              if (!p) return;
-              const r = prompt('На что заменить (Replacement):', '');
-              setConfig({ ...config, cleaning_rules: [...config.cleaning_rules, { pattern: p, replacement: r }] });
-              setTimeout(() => lucide.createIcons(), 10);
-            }}>
-              Добавить правило
-            </button>
+          <div className="tabs">
+            <button className={} onClick={() => setActiveTab("dashboard")}>📊</button>
+            <button className={} onClick={() => setActiveTab("sources")}>📡</button>
+            <button className={} onClick={() => setActiveTab("rules")}>🔧</button>
+            <button className={} onClick={() => setActiveTab("settings")}>⚙️</button>
+            <button className={} onClick={() => setActiveTab("logs")}>📝</button>
           </div>
 
-          <div className="footer-action">
-            <button className="btn-primary save-btn" onClick={saveConfig} disabled={saving}>
-              {saving ? <div className="loader"></div> : <><i data-lucide="save"></i> Сохранить и применить</>}
-            </button>
-          </div>
+          {activeTab === "dashboard" && (
+            <div>
+              <div className="stats-grid">
+                <div className="stat-card"><p className="stat-label">Обработано (24ч)</p><div className="stat-value">{stats?.messages_processed_24h || 0}</div></div>
+                <div className="stat-card"><p className="stat-label">Всего</p><div className="stat-value">{stats?.messages_total || 0}</div></div>
+              </div>
+              <div className="card"><p style={{margin: 0, color: isActive ? "#10b981" : "#ef4444"}}>{isActive ? "✓ Бот активен" : "✗ Бот неактивен"}</p></div>
+              <div className="card"><h3 className="card-title">Последние сообщения</h3><div className="item-list">{recentMessages.slice(0, 5).map((msg, i) => <div className="item" key={i}><div className="item-info">ID: {msg.message_id}</div></div>) || "Нет данных"}</div></div>
+            </div>
+          )}
+
+          {activeTab === "sources" && (
+            <div>
+              <div className="card"><h3 className="card-title">Добавить источник</h3><div className="input-group"><input type="text" placeholder="@channel" value={newSource} onChange={e => setNewSource(e.target.value)} /><button className="btn btn-primary" style={{flex: 0}} onClick={() => {if (newSource.trim()) {setConfig({...config, sources: [...config.sources, newSource]}); setNewSource("");}}}>+</button></div></div>
+              <div className="card"><h3 className="card-title">Источники ({config.sources.length})</h3><div className="item-list">{config.sources.map((src, i) => <div className="item" key={i}><span>{src}</span><button className="btn btn-danger" onClick={() => setConfig({...config, sources: config.sources.filter((_, idx) => idx !== i)})}>🗑️</button></div>)}</div></div>
+              <div className="card"><h3 className="card-title">Целевой канал</h3><input type="text" value={config.target} onChange={e => setConfig({...config, target: e.target.value})} placeholder="@target" /></div>
+              <button className="btn btn-primary" onClick={saveConfig} disabled={saving}>{saving ? "Сохранение..." : "Сохранить"}</button>
+            </div>
+          )}
+
+          {activeTab === "rules" && (
+            <div>
+              <div className="card"><h3 className="card-title">Правила очистки ({config.cleaning_rules.length})</h3><div className="item-list">{config.cleaning_rules.map((rule, i) => <div className="item" key={i}><div className="item-info"><small style={{color: "var(--text-dim)"}}>{rule.pattern}</small></div><button className="btn btn-danger btn-sm" onClick={() => setConfig({...config, cleaning_rules: config.cleaning_rules.filter((_, idx) => idx !== i)})}>🗑️</button></div>)}</div></div>
+            </div>
+          )}
+
+          {activeTab === "settings" && (
+            <div>
+              <div className="card"><h3 className="card-title">Основные</h3><div className="form-group"><label>Автоперевод</label><div style={{display: "flex", alignItems: "center", gap: "12px"}}><div className={} onClick={() => setConfig({...config, auto_translate: !config.auto_translate})}><div className="toggle-dot"></div></div></div></div></div>
+              <div className="card"><button className="btn btn-secondary" onClick={() => {axios.post("/restart").then(() => {showToast("Перезагружено", "success"); setTimeout(fetchData, 2000);});}}>🔄 Перезагрузить</button></div>
+            </div>
+          )}
+
+          {activeTab === "logs" && (
+            <div>
+              <div className="card"><h3 className="card-title">Логи</h3><div style={{maxHeight: "400px", overflowY: "auto"}}>{logs.length > 0 ? logs.map((log, i) => <div key={i} className="log-item">{log.message}</div>) : "Нет логов"}</div></div>
+            </div>
+          )}
+
+          <Toast message={toast?.message} type={toast?.type} visible={!!toast} />
         </div>
       );
     };
 
-    const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(<App />);
-
-    // Initial icons load
-    setTimeout(() => lucide.createIcons(), 100);
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
   </script>
 </body>
-
 </html>
