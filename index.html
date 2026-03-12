@@ -2,204 +2,2347 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
-  <meta name="theme-color" content="#8b5cf6">
-  <title>Bot Manager Pro</title>
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone@7.22.5/babel.min.js"></script>
-  <script src="https://unpkg.com/axios@1.4.0/dist/axios.min.js"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Iranium Pro</title>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
   <style>
-    :root{--bg:#0a0a0f;--card:rgba(20,20,30,0.8);--accent:#8b5cf6;--success:#10b981;--danger:#ef4444;--text:#fff;--text-dim:#94a3b8;--border:rgba(255,255,255,0.1)}
-    *{box-sizing:border-box}
-    body{background:var(--bg);color:var(--text);font-family:Outfit,sans-serif;margin:0;padding:12px}
-    #root{display:flex;justify-content:center;min-height:100vh}
-    .container{width:100%;max-width:600px}
-    .header{background:linear-gradient(135deg,#8b5cf6 0%,#6d28d9 100%);padding:16px;border-radius:16px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 10px 40px rgba(139,92,246,0.2)}
-    .header h1{margin:0;font-size:20px;font-weight:700}
-    .status-badge{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:99px;font-size:11px;font-weight:600;background:rgba(255,255,255,0.15)}
-    .status-badge.active{background:rgba(16,185,129,0.3);color:#34d399}
-    .status-badge.inactive{background:rgba(239,68,68,0.3);color:#fca5a5}
-    .tabs{display:flex;gap:6px;margin-bottom:16px;background:var(--card);padding:6px;border-radius:14px;border:1px solid var(--border);flex-wrap:wrap}
-    .tab-button{flex:1;min-width:60px;padding:8px 10px;background:0;border:0;color:var(--text-dim);cursor:pointer;border-radius:10px;font-size:11px;font-weight:600;transition:all 0.2s}
-    .tab-button:hover{background:rgba(255,255,255,0.05);color:var(--text)}
-    .tab-button.active{background:var(--accent);color:#fff;box-shadow:0 4px 16px rgba(139,92,246,0.3)}
-    .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:12px}
-    .card-title{font-size:13px;font-weight:700;margin:0 0 12px}
-    .stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
-    .stat-card{background:linear-gradient(135deg,rgba(139,92,246,0.1) 0%,rgba(59,130,246,0.1) 100%);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center}
-    .stat-value{font-size:22px;font-weight:700;color:var(--accent);margin:6px 0}
-    .stat-label{font-size:11px;color:var(--text-dim);margin:0}
-    .form-group{margin-bottom:12px}
-    label{display:block;font-size:11px;font-weight:600;color:var(--text-dim);margin-bottom:6px}
-    input,select,textarea{width:100%;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:var(--text);font-family:Outfit,sans-serif;font-size:13px;outline:0}
-    input:focus,select:focus,textarea:focus{border-color:var(--accent);background:rgba(139,92,246,0.1)}
-    textarea{resize:vertical;min-height:70px}
-    .btn{padding:10px 16px;border-radius:10px;border:0;font-size:12px;font-weight:600;cursor:pointer;transition:all 0.2s;display:inline-flex;align-items:center;gap:6px;font-family:Outfit,sans-serif;width:100%}
-    .btn-primary{background:var(--accent);color:#fff}
-    .btn-primary:hover:not(:disabled){background:#a78bfa;transform:translateY(-1px)}
-    .btn-secondary{background:#f59e0b;color:#fff}
-    .btn-danger{background:var(--danger);color:#fff;padding:6px 10px;font-size:11px;width:auto}
-    .btn:disabled{opacity:0.5;cursor:not-allowed}
-    .item-list{display:flex;flex-direction:column;gap:6px}
-    .item{background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:10px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;font-size:13px}
-    .item:hover{background:rgba(255,255,255,0.08);border-color:var(--accent)}
-    .input-group{display:flex;gap:8px;margin-bottom:12px}
-    .input-group input{flex:1;margin:0}
-    .toggle{width:45px;height:26px;background:rgba(255,255,255,0.1);border-radius:13px;cursor:pointer;border:1px solid var(--border);position:relative}
-    .toggle.active{background:var(--success);border-color:var(--success)}
-    .toggle-dot{position:absolute;width:22px;height:22px;background:#fff;border-radius:11px;top:2px;left:2px;transition:left 0.2s}
-    .toggle.active .toggle-dot{left:21px}
-    .loading{text-align:center;padding:30px 20px;color:var(--text-dim)}
-    .spinner{width:32px;height:32px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 12px}
-    @keyframes spin{to{transform:rotate(360deg)}}
-    .skeleton{background:rgba(255,255,255,0.05);border-radius:8px;height:20px;margin:8px 0;animation:pulse 1.5s ease-in-out infinite}
-    @keyframes pulse{0%,100%{opacity:0.5}50%{opacity:1}}
-    .toast{position:fixed;bottom:16px;right:16px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 16px;color:var(--text);max-width:280px;animation:slideIn 0.3s;z-index:1000;font-size:12px}
-    .toast.success{border-color:var(--success);background:rgba(16,185,129,0.1)}
-    .toast.error{border-color:var(--danger);background:rgba(239,68,68,0.1)}
-    @keyframes slideIn{from{transform:translateX(400px);opacity:0}to{transform:translateX(0);opacity:1}}
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background-color: #f0f4f8;
+      color: #2c3e50;
+    }
+
+    /* ============ AUTH SCREEN ============ */
+    .auth-container {
+      display: flex;
+      height: 100vh;
+      background-color: #ffffff;
+    }
+
+    .auth-left {
+      flex: 1;
+      background: linear-gradient(135deg, #1b2236 0%, #2d3a52 100%);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      color: white;
+      padding: 40px;
+    }
+
+    .auth-left-logo {
+      font-size: 72px;
+      margin-bottom: 30px;
+      animation: pulse-logo 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse-logo {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+    }
+
+    .auth-left h1 {
+      font-size: 48px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      letter-spacing: -1px;
+    }
+
+    .auth-left p {
+      font-size: 18px;
+      color: rgba(255, 255, 255, 0.7);
+      margin-bottom: 40px;
+      font-weight: 500;
+    }
+
+    .auth-left-features {
+      list-style: none;
+      font-size: 16px;
+      line-height: 1.8;
+    }
+
+    .auth-left-features li {
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+    }
+
+    .auth-left-features li:before {
+      content: '✓';
+      color: #3b82f6;
+      font-weight: bold;
+      margin-right: 12px;
+      font-size: 20px;
+    }
+
+    .auth-right {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 40px;
+      background-color: #f0f4f8;
+    }
+
+    .auth-card {
+      background: white;
+      border-radius: 13px;
+      padding: 40px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+      width: 100%;
+      max-width: 400px;
+      border: 1px solid #e8edf2;
+    }
+
+    .auth-tabs {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 32px;
+      border-bottom: 1px solid #e8edf2;
+    }
+
+    .auth-tab {
+      padding: 12px 16px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 15px;
+      font-weight: 600;
+      color: #95a3b3;
+      border-bottom: 2px solid transparent;
+      transition: all 0.3s ease;
+      margin-bottom: -1px;
+    }
+
+    .auth-tab.active {
+      color: #3b82f6;
+      border-bottom-color: #3b82f6;
+    }
+
+    .auth-form {
+      display: none;
+    }
+
+    .auth-form.active {
+      display: block;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-group label {
+      display: block;
+      font-weight: 600;
+      font-size: 14px;
+      color: #2c3e50;
+      margin-bottom: 8px;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1px solid #e8edf2;
+      border-radius: 8px;
+      font-size: 14px;
+      transition: all 0.3s ease;
+      background-color: #f8fafb;
+    }
+
+    .form-group input:focus {
+      outline: none;
+      background-color: white;
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    .bp {
+      background-color: #3b82f6;
+      color: white;
+      padding: 12px 16px;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      width: 100%;
+    }
+
+    .bp:hover {
+      background-color: #2563eb;
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    }
+
+    .bp:active {
+      transform: scale(0.98);
+    }
+
+    .auth-divider {
+      display: flex;
+      align-items: center;
+      margin: 24px 0;
+      color: #95a3b3;
+      font-size: 13px;
+    }
+
+    .auth-divider:before,
+    .auth-divider:after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background-color: #e8edf2;
+    }
+
+    .auth-divider span {
+      margin: 0 12px;
+    }
+
+    .google-btn-container {
+      width: 100%;
+    }
+
+    .google-btn-container button {
+      width: 100%;
+    }
+
+    .google-no-config {
+      font-size: 12px;
+      color: #95a3b3;
+      text-align: center;
+      padding: 12px;
+      background-color: #f8fafb;
+      border-radius: 8px;
+    }
+
+    /* ============ MAIN APP ============ */
+    .main-container {
+      display: none;
+      flex: 1;
+      height: 100vh;
+      background-color: #f0f4f8;
+    }
+
+    .main-container.active {
+      display: flex;
+    }
+
+    .sidebar {
+      width: 280px;
+      background-color: #1b2236;
+      color: white;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+      overflow-y: auto;
+    }
+
+    .sidebar-header {
+      padding: 24px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .sidebar-logo {
+      font-size: 32px;
+    }
+
+    .sidebar-title {
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .sidebar-nav {
+      flex: 1;
+      padding: 16px 0;
+      overflow-y: auto;
+    }
+
+    .sidebar-section-title {
+      padding: 12px 24px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.5);
+      letter-spacing: 0.5px;
+      margin-top: 16px;
+    }
+
+    .sidebar-nav-item {
+      padding: 14px 24px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.7);
+      border-left: 3px solid transparent;
+    }
+
+    .sidebar-nav-item:hover {
+      background-color: rgba(59, 130, 246, 0.1);
+      color: white;
+    }
+
+    .sidebar-nav-item.active {
+      background-color: rgba(59, 130, 246, 0.2);
+      color: #3b82f6;
+      border-left-color: #3b82f6;
+    }
+
+    .sidebar-footer {
+      padding: 16px 24px;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.5);
+    }
+
+    .main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .topbar {
+      background-color: white;
+      border-bottom: 1px solid #e8edf2;
+      padding: 16px 32px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+
+    .topbar-title {
+      font-size: 22px;
+      font-weight: 700;
+      color: #1b2236;
+    }
+
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .topbar-icon {
+      font-size: 22px;
+      cursor: pointer;
+      color: #6b7280;
+      transition: color 0.3s ease;
+    }
+
+    .topbar-icon:hover {
+      color: #1b2236;
+    }
+
+    .topbar-user {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+      padding: 8px 12px;
+      border-radius: 8px;
+      transition: background-color 0.3s ease;
+    }
+
+    .topbar-user:hover {
+      background-color: #f8fafb;
+    }
+
+    .user-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background-color: #3b82f6;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: 700;
+      font-size: 16px;
+    }
+
+    .user-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: #1b2236;
+    }
+
+    .user-dropdown {
+      position: absolute;
+      top: 70px;
+      right: 32px;
+      background-color: white;
+      border: 1px solid #e8edf2;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      min-width: 200px;
+      display: none;
+      z-index: 1000;
+    }
+
+    .user-dropdown.active {
+      display: block;
+    }
+
+    .user-dropdown-item {
+      padding: 12px 16px;
+      cursor: pointer;
+      font-size: 14px;
+      color: #2c3e50;
+      transition: background-color 0.3s ease;
+      border-bottom: 1px solid #e8edf2;
+    }
+
+    .user-dropdown-item:last-child {
+      border-bottom: none;
+    }
+
+    .user-dropdown-item:hover {
+      background-color: #f8fafb;
+    }
+
+    .user-dropdown-item.danger {
+      color: #dc2626;
+      font-weight: 600;
+    }
+
+    .page-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 32px;
+    }
+
+    .page {
+      display: none;
+    }
+
+    .page.active {
+      display: block;
+    }
+
+    /* ============ CARDS & COMPONENTS ============ */
+    .card {
+      background: white;
+      border-radius: 13px;
+      padding: 24px;
+      border: 1px solid #e8edf2;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+      margin-bottom: 20px;
+    }
+
+    .card-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: #1b2236;
+      margin-bottom: 20px;
+    }
+
+    .card-subtitle {
+      font-size: 12px;
+      color: #95a3b3;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-top: 24px;
+      margin-bottom: 12px;
+    }
+
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .stat-card {
+      background: white;
+      border: 1px solid #e8edf2;
+      border-radius: 13px;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .stat-label {
+      font-size: 13px;
+      color: #95a3b3;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 12px;
+    }
+
+    .stat-value {
+      font-size: 32px;
+      font-weight: 700;
+      color: #1b2236;
+    }
+
+    .stat-unit {
+      font-size: 13px;
+      color: #95a3b3;
+      margin-left: 4px;
+    }
+
+    /* ============ TABLES ============ */
+    .table-container {
+      overflow-x: auto;
+      margin-top: 16px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    th {
+      background-color: #f8fafb;
+      padding: 12px;
+      text-align: left;
+      font-weight: 600;
+      color: #6b7280;
+      border-bottom: 1px solid #e8edf2;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    td {
+      padding: 12px;
+      border-bottom: 1px solid #e8edf2;
+    }
+
+    tr:hover {
+      background-color: #f8fafb;
+    }
+
+    tbody tr:last-child td {
+      border-bottom: none;
+    }
+
+    /* ============ PILLS & BADGES ============ */
+    .pill {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .p-green {
+      background-color: #d1fae5;
+      color: #065f46;
+    }
+
+    .p-red {
+      background-color: #fee2e2;
+      color: #7f1d1d;
+    }
+
+    .p-blue {
+      background-color: #dbeafe;
+      color: #1e40af;
+    }
+
+    .p-amber {
+      background-color: #fef3c7;
+      color: #78350f;
+    }
+
+    .p-gray {
+      background-color: #f3f4f6;
+      color: #6b7280;
+    }
+
+    /* ============ FORMS ============ */
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+
+    .form-row.full {
+      grid-template-columns: 1fr;
+    }
+
+    .form-group textarea {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1px solid #e8edf2;
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: monospace;
+      transition: all 0.3s ease;
+      background-color: #f8fafb;
+      resize: vertical;
+      min-height: 100px;
+    }
+
+    .form-group textarea:focus {
+      outline: none;
+      background-color: white;
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    .form-group select {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1px solid #e8edf2;
+      border-radius: 8px;
+      font-size: 14px;
+      background-color: #f8fafb;
+      transition: all 0.3s ease;
+      cursor: pointer;
+    }
+
+    .form-group select:focus {
+      outline: none;
+      background-color: white;
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    /* ============ BUTTONS ============ */
+    .btn-group {
+      display: flex;
+      gap: 12px;
+      margin-top: 24px;
+    }
+
+    .bp, .bd, .bg-btn, .bs {
+      padding: 12px 16px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      white-space: nowrap;
+    }
+
+    .bp {
+      background-color: #3b82f6;
+      color: white;
+    }
+
+    .bp:hover {
+      background-color: #2563eb;
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    }
+
+    .bd {
+      background-color: #dc2626;
+      color: white;
+    }
+
+    .bd:hover {
+      background-color: #b91c1c;
+      box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+    }
+
+    .bg-btn {
+      background-color: #f3f4f6;
+      color: #6b7280;
+    }
+
+    .bg-btn:hover {
+      background-color: #e5e7eb;
+    }
+
+    .bs {
+      background-color: #10b981;
+      color: white;
+    }
+
+    .bs:hover {
+      background-color: #059669;
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+    }
+
+    .btn-small {
+      padding: 8px 12px;
+      font-size: 13px;
+    }
+
+    /* ============ PROGRESS BAR ============ */
+    .progress-container {
+      margin: 20px 0;
+    }
+
+    .progress-label {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      color: #2c3e50;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 8px;
+      background-color: #e8edf2;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      background-color: #3b82f6;
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+
+    /* ============ SPINNER ============ */
+    .spinner {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid #e8edf2;
+      border-top-color: #3b82f6;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* ============ TOAST ============ */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: #1b2236;
+      color: white;
+      padding: 14px 20px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      z-index: 2000;
+      animation: slideUp 0.3s ease;
+      max-width: 400px;
+      font-size: 14px;
+    }
+
+    .toast.success {
+      background-color: #10b981;
+    }
+
+    .toast.error {
+      background-color: #dc2626;
+    }
+
+    .toast.info {
+      background-color: #3b82f6;
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+      }
+    }
+
+    /* ============ MODAL ============ */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(0, 0, 0, 0.5);
+      z-index: 1500;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .modal.active {
+      display: flex;
+    }
+
+    .modal-content {
+      background: white;
+      border-radius: 13px;
+      padding: 32px;
+      max-width: 500px;
+      width: 90%;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    }
+
+    .modal-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: #1b2236;
+      margin-bottom: 16px;
+    }
+
+    .modal-close {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      background: none;
+      border: none;
+      font-size: 24px;
+      cursor: pointer;
+      color: #95a3b3;
+    }
+
+    /* ============ CHECKBOX & TOGGLE ============ */
+    .checkbox-group {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      margin: 12px 0;
+    }
+
+    input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+      accent-color: #3b82f6;
+    }
+
+    .toggle-switch {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+    }
+
+    .toggle-switch input[type="checkbox"] {
+      display: none;
+    }
+
+    .toggle-slider {
+      width: 44px;
+      height: 24px;
+      background-color: #e8edf2;
+      border-radius: 12px;
+      position: relative;
+      transition: background-color 0.3s ease;
+    }
+
+    .toggle-slider:after {
+      content: '';
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      background-color: white;
+      border-radius: 50%;
+      top: 2px;
+      left: 2px;
+      transition: left 0.3s ease;
+    }
+
+    input[type="checkbox"]:checked + .toggle-slider {
+      background-color: #3b82f6;
+    }
+
+    input[type="checkbox"]:checked + .toggle-slider:after {
+      left: 22px;
+    }
+
+    /* ============ STATUS BADGE ============ */
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .status-badge:before {
+      content: '';
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    .status-badge.online:before {
+      background-color: #10b981;
+    }
+
+    .status-badge.online {
+      background-color: #d1fae5;
+      color: #065f46;
+    }
+
+    .status-badge.offline:before {
+      background-color: #6b7280;
+    }
+
+    .status-badge.offline {
+      background-color: #f3f4f6;
+      color: #6b7280;
+    }
+
+    .status-badge.error:before {
+      background-color: #dc2626;
+    }
+
+    .status-badge.error {
+      background-color: #fee2e2;
+      color: #7f1d1d;
+    }
+
+    /* ============ RESPONSIVE ============ */
+    @media (max-width: 1024px) {
+      .auth-container {
+        flex-direction: column;
+      }
+
+      .auth-left {
+        min-height: 200px;
+        padding: 24px;
+      }
+
+      .auth-left h1 {
+        font-size: 32px;
+      }
+
+      .sidebar {
+        width: 240px;
+      }
+
+      .stat-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 768px) {
+      .sidebar {
+        width: 200px;
+      }
+
+      .sidebar-nav-item {
+        padding: 12px 16px;
+        font-size: 13px;
+      }
+
+      .topbar {
+        padding: 12px 16px;
+      }
+
+      .page-content {
+        padding: 16px;
+      }
+
+      .stat-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .form-row {
+        grid-template-columns: 1fr;
+      }
+
+      .auth-card {
+        max-width: 100%;
+      }
+    }
   </style>
 </head>
 <body>
-  <div id="root"></div>
-  <script type="text/babel">
-    const { useState, useEffect, useCallback, useRef } = React;
 
-    const Toast = ({ message, type, visible }) => visible ? <div className={}>{message}</div> : null;
+<!-- AUTH SCREEN -->
+<div class="auth-container" id="authContainer">
+  <div class="auth-left">
+    <div class="auth-left-logo">⚡</div>
+    <h1>Iranium Pro</h1>
+    <p>Автоматизация Telegram</p>
+    <ul class="auth-left-features">
+      <li>Парсинг аудитории</li>
+      <li>Умный инвайтинг</li>
+      <li>Автонаполнение каналов</li>
+    </ul>
+  </div>
+  <div class="auth-right">
+    <div class="auth-card">
+      <div class="auth-tabs">
+        <button class="auth-tab active" data-tab="login">Войти</button>
+        <button class="auth-tab" data-tab="register">Регистрация</button>
+      </div>
 
-    const App = () => {
-      const [activeTab, setActiveTab] = useState('dashboard');
-      const [config, setConfig] = useState(null);
-      const [status, setStatus] = useState('checking');
-      const [stats, setStats] = useState(null);
-      const [newSource, setNewSource] = useState('');
-      const [saving, setSaving] = useState(false);
-      const [loading, setLoading] = useState(true);
-      const [toast, setToast] = useState(null);
-      const cacheRef = useRef({});
-
-      const showToast = (message, type = 'info') => {
-        setToast({ message, type });
-        setTimeout(() => setToast(null), 2500);
-      };
-
-      const fetchData = useCallback(async () => {
-        try {
-          setLoading(true);
-          const requests = [];
-          
-          // Параллельная загрузка только необходимых данных для текущей вкладки
-          requests.push(axios.get('/config'));
-          requests.push(axios.get('/status'));
-          if (activeTab === 'dashboard') {
-            requests.push(axios.get('/stats'));
-          }
-          
-          const responses = await Promise.all(requests);
-          setConfig(responses[0].data);
-          setStatus(responses[1].data.status);
-          if (responses[2]) {
-            setStats(responses[2].data);
-          }
-          setLoading(false);
-        } catch (e) {
-          console.error(e);
-          showToast('Ошибка подключения', 'error');
-          setLoading(false);
-        }
-      }, [activeTab]);
-
-      useEffect(() => {
-        fetchData();
-        const interval = setInterval(fetchData, 15000);
-        return () => clearInterval(interval);
-      }, [fetchData]);
-
-      const saveConfig = async () => {
-        setSaving(true);
-        try {
-          await axios.post('/config', config);
-          showToast('Сохранено ✓', 'success');
-          setTimeout(() => setSaving(false), 1000);
-        } catch (e) {
-          showToast('Ошибка сохранения', 'error');
-          setSaving(false);
-        }
-      };
-
-      if (loading || !config) {
-        return (
-          <div className="container">
-            <div className="loading">
-              <div className="spinner"></div>
-              <p>Загрузка...</p>
-            </div>
-          </div>
-        );
-      }
-
-      const isActive = status === 'active' || status === 'running';
-
-      return (
-        <div className="container">
-          <div className="header">
-            <div>
-              <h1>🤖 Bot Manager</h1>
-              <div className={}>
-                <span style={{width:6,height:6,borderRadius:'50%',display:'inline-block',background:isActive?'#10b981':'#ef4444'}}></span>
-                {isActive ? 'АКТИВЕН' : 'НЕАКТИВЕН'}
-              </div>
-            </div>
-            <button className="btn btn-secondary" style={{width:'auto',padding:'6px 10px'}} onClick={fetchData}>↻</button>
-          </div>
-
-          <div className="tabs">
-            <button className={} onClick={() => setActiveTab('dashboard')}>📊</button>
-            <button className={} onClick={() => setActiveTab('sources')}>📡</button>
-            <button className={} onClick={() => setActiveTab('rules')}>🔧</button>
-            <button className={} onClick={() => setActiveTab('settings')}>⚙️</button>
-          </div>
-
-          {activeTab === 'dashboard' && (
-            <div>
-              <div className="stats-grid">
-                <div className="stat-card"><p className="stat-label">За 24ч</p><div className="stat-value">{stats?.messages_processed_24h || 0}</div></div>
-                <div className="stat-card"><p className="stat-label">Всего</p><div className="stat-value">{stats?.messages_total || 0}</div></div>
-              </div>
-              <div className="card"><p style={{margin:0,color:isActive?'#10b981':'#ef4444'}}>{isActive ? '✓ Бот активен' : '✗ Неактивен'}</p></div>
-            </div>
-          )}
-
-          {activeTab === 'sources' && (
-            <div>
-              <div className="card"><h3 className="card-title">Добавить</h3><div className="input-group"><input type="text" placeholder="@channel" value={newSource} onChange={e => setNewSource(e.target.value)} /><button className="btn btn-primary" style={{flex:0,width:'auto'}} onClick={() => {if (newSource.trim()) {setConfig({...config, sources: [...config.sources, newSource]}); setNewSource('');}}} >+</button></div></div>
-              <div className="card"><h3 className="card-title">Источники ({config.sources.length})</h3><div className="item-list">{config.sources.map((src, i) => <div className="item" key={i}><span>{src}</span><button className="btn btn-danger" onClick={() => setConfig({...config, sources: config.sources.filter((_, idx) => idx !== i)})}>✕</button></div>)}</div></div>
-              <div className="card"><h3 className="card-title">Целевой</h3><input type="text" value={config.target} onChange={e => setConfig({...config, target: e.target.value})} placeholder="@target" /></div>
-              <button className="btn btn-primary" onClick={saveConfig} disabled={saving}>{saving ? '...' : 'Сохранить'}</button>
-            </div>
-          )}
-
-          {activeTab === 'rules' && (
-            <div>
-              <div className="card"><h3 className="card-title">Правила ({config.cleaning_rules.length})</h3><div className="item-list">{config.cleaning_rules.map((rule, i) => <div className="item" key={i}><div style={{fontSize:11,color:'var(--text-dim)'}}>{rule.pattern}</div><button className="btn btn-danger" onClick={() => setConfig({...config, cleaning_rules: config.cleaning_rules.filter((_, idx) => idx !== i)})}>✕</button></div>)}</div></div>
-            </div>
-          )}
-
-          {activeTab === 'settings' && (
-            <div>
-              <div className="card"><h3 className="card-title">Основные</h3><div className="form-group"><label>Автоперевод</label><div style={{display:'flex',alignItems:'center',gap:'10px'}}><div className={} onClick={() => setConfig({...config, auto_translate: !config.auto_translate})}><div className="toggle-dot"></div></div></div></div></div>
-              <div className="card"><button className="btn btn-secondary" onClick={() => {axios.post('/restart').then(() => {showToast('Перезагружено', 'success'); setTimeout(fetchData, 2000);}).catch(() => showToast('Ошибка', 'error'));}} >🔄 Перезагрузить</button></div>
-            </div>
-          )}
-
-          <Toast message={toast?.message} type={toast?.type} visible={!!toast} />
+      <!-- LOGIN FORM -->
+      <form class="auth-form active" id="loginForm" data-tab="login">
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="loginEmail" placeholder="example@mail.com" required>
         </div>
-      );
-    };
+        <div class="form-group">
+          <label>Пароль</label>
+          <input type="password" id="loginPassword" placeholder="Минимум 6 символов" required>
+        </div>
+        <button type="submit" class="bp">Войти</button>
 
-    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
-  </script>
+        <div class="auth-divider"><span>или</span></div>
+
+        <div id="googleBtn" class="google-btn-container"></div>
+        <div id="googleNoConfig" class="google-no-config" style="display: none;">Google OAuth не настроен (добавьте Client ID в настройках)</div>
+      </form>
+
+      <!-- REGISTER FORM -->
+      <form class="auth-form" id="registerForm" data-tab="register">
+        <div class="form-group">
+          <label>Имя</label>
+          <input type="text" id="registerName" placeholder="Ваше имя" required>
+        </div>
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="registerEmail" placeholder="example@mail.com" required>
+        </div>
+        <div class="form-group">
+          <label>Пароль</label>
+          <input type="password" id="registerPassword" placeholder="Минимум 6 символов" required minlength="6">
+        </div>
+        <button type="submit" class="bp">Создать аккаунт</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div class="main-container" id="mainContainer">
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo">⚡</div>
+      <div class="sidebar-title">Iranium</div>
+    </div>
+    <div class="sidebar-nav">
+      <div class="sidebar-nav-item active" data-page="dashboard">
+        <span>▦</span> Личный кабинет
+      </div>
+      <div class="sidebar-nav-item" data-page="auth">
+        <span>🔑</span> Авторизация
+      </div>
+      <div class="sidebar-section-title">Инструменты</div>
+      <div class="sidebar-nav-item" data-page="parser">
+        <span>🔍</span> Парсер групп
+      </div>
+      <div class="sidebar-nav-item" data-page="invite">
+        <span>👥</span> Инвайтинг
+      </div>
+      <div class="sidebar-nav-item" data-page="autofill">
+        <span>📢</span> Автонаполнение
+      </div>
+    </div>
+    <div class="sidebar-footer">
+      Iranium Pro v1.0
+    </div>
+  </div>
+
+  <!-- MAIN CONTENT -->
+  <div class="main-content">
+    <!-- TOPBAR -->
+    <div class="topbar">
+      <div class="topbar-title" id="pageTitle">Личный кабинет</div>
+      <div class="topbar-right">
+        <div class="topbar-icon">🔔</div>
+        <div class="topbar-user" id="userMenu">
+          <div class="user-avatar" id="userAvatar">U</div>
+          <div class="user-name" id="userName">User</div>
+        </div>
+        <div class="user-dropdown" id="userDropdown">
+          <div class="user-dropdown-item" id="userEmail">user@example.com</div>
+          <div class="user-dropdown-item">Настройки</div>
+          <div class="user-dropdown-item danger" id="logoutBtn">Выйти</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAGE CONTENT -->
+    <div class="page-content">
+      <!-- DASHBOARD PAGE -->
+      <div class="page active" id="dashboardPage">
+        <h2 style="font-size: 24px; font-weight: 700; color: #1b2236; margin-bottom: 8px;" id="welcomeMsg">Добро пожаловать!</h2>
+        <p style="color: #95a3b3; margin-bottom: 24px;" id="userEmail2">Зарегистрирован: user@example.com</p>
+
+        <div class="stat-grid">
+          <div class="stat-card">
+            <div class="stat-label">Переслано сообщений</div>
+            <div><span class="stat-value" id="statMessages">0</span><span class="stat-unit">сообщений</span></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Спарсено участников</div>
+            <div><span class="stat-value" id="statParsed">0</span><span class="stat-unit">человек</span></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Приглашено участников</div>
+            <div><span class="stat-value" id="statInvited">0</span><span class="stat-unit">человек</span></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Время работы</div>
+            <div><span class="stat-value" id="statUptime">0</span><span class="stat-unit">часов</span></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Активность и источники</div>
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Источник</th>
+                  <th>Статус</th>
+                  <th>Время обновления</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Канал 1</td>
+                  <td><span class="status-badge online">Активно</span></td>
+                  <td>2 минуты назад</td>
+                </tr>
+                <tr>
+                  <td>Канал 2</td>
+                  <td><span class="status-badge online">Активно</span></td>
+                  <td>5 минут назад</td>
+                </tr>
+                <tr>
+                  <td>Группа 1</td>
+                  <td><span class="status-badge offline">Неактивно</span></td>
+                  <td>1 час назад</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Здоровье системы</div>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px;">
+            <div style="padding: 12px; background-color: #f8fafb; border-radius: 8px; border-left: 3px solid #10b981;">
+              <div style="font-size: 12px; color: #95a3b3; font-weight: 600; margin-bottom: 4px;">API</div>
+              <div style="font-size: 14px; font-weight: 700; color: #1b2236;"><span class="status-badge online">OK</span></div>
+            </div>
+            <div style="padding: 12px; background-color: #f8fafb; border-radius: 8px; border-left: 3px solid #10b981;">
+              <div style="font-size: 12px; color: #95a3b3; font-weight: 600; margin-bottom: 4px;">Telegram Bot</div>
+              <div style="font-size: 14px; font-weight: 700; color: #1b2236;"><span class="status-badge online">OK</span></div>
+            </div>
+            <div style="padding: 12px; background-color: #f8fafb; border-radius: 8px; border-left: 3px solid #10b981;">
+              <div style="font-size: 12px; color: #95a3b3; font-weight: 600; margin-bottom: 4px;">TG Session</div>
+              <div style="font-size: 14px; font-weight: 700; color: #1b2236;"><span class="status-badge online">OK</span></div>
+            </div>
+            <div style="padding: 12px; background-color: #f8fafb; border-radius: 8px; border-left: 3px solid #10b981;">
+              <div style="font-size: 12px; color: #95a3b3; font-weight: 600; margin-bottom: 4px;">Переводчик</div>
+              <div style="font-size: 14px; font-weight: 700; color: #1b2236;"><span class="status-badge online">OK</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; border: none;">
+          <div class="card-title" style="color: white; margin-bottom: 12px;">Начните использовать Iranium Pro</div>
+          <p style="color: rgba(255, 255, 255, 0.9); margin-bottom: 16px; font-size: 14px;">Настройте авторизацию Telegram, чтобы начать парсить пользователей и автоматизировать инвайтинг.</p>
+          <button class="bp" style="background-color: white; color: #3b82f6;" onclick="switchPage('auth')">Настроить авторизацию →</button>
+        </div>
+      </div>
+
+      <!-- AUTH PAGE -->
+      <div class="page" id="authPage">
+        <h2 style="font-size: 24px; font-weight: 700; color: #1b2236; margin-bottom: 24px;">Авторизация Telegram</h2>
+
+        <div class="card">
+          <div class="card-title">Учетные данные API</div>
+          <form id="credentialsForm">
+            <div class="form-row">
+              <div class="form-group">
+                <label>API ID</label>
+                <input type="number" id="apiId" placeholder="Введите API ID" required>
+              </div>
+              <div class="form-group">
+                <label>API Hash</label>
+                <input type="text" id="apiHash" placeholder="Введите API Hash" required>
+              </div>
+            </div>
+            <button type="submit" class="bp">Сохранить учетные данные</button>
+          </form>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Аутентификация через аккаунт</div>
+          <p style="color: #95a3b3; font-size: 14px; margin-bottom: 20px;">Введите номер телефона, связанный с вашим аккаунтом Telegram</p>
+
+          <div id="authFlow">
+            <div id="authPhoneStep" class="form-group">
+              <label>Номер телефона</label>
+              <input type="tel" id="authPhone" placeholder="+79991234567" required>
+              <button type="button" class="bp" style="margin-top: 12px;" onclick="startTGAuth()">Отправить код</button>
+            </div>
+
+            <div id="authCodeStep" style="display: none;">
+              <div style="padding: 12px; background-color: #eff6ff; border-radius: 8px; border-left: 3px solid #3b82f6; margin-bottom: 16px; font-size: 13px; color: #1e40af;">
+                <div style="font-weight: 600; margin-bottom: 4px;">📱 Проверьте приложение Telegram</div>
+                <div id="authCodeHint">Код отправлен в приложение Telegram — откройте чат с "Telegram" на любом устройстве</div>
+              </div>
+              <div class="form-group">
+                <label>Код подтверждения</label>
+                <input type="text" id="authCode" placeholder="12345" maxlength="5" style="letter-spacing: 4px; font-size: 20px; font-weight: 700; text-align: center;">
+              </div>
+              <button type="button" class="bp" onclick="verifyTGCode()">Подтвердить</button>
+              <button type="button" class="bg-btn" style="margin-left: 8px;" onclick="resetAuthFlow()">Отмена</button>
+              <div style="margin-top: 16px; border-top: 1px solid #e5e7eb; padding-top: 16px;">
+                <span id="resendCountdown" style="font-size: 13px; color: #95a3b3;">Повторная отправка через <strong id="resendTimer">60</strong> сек</span>
+                <button type="button" id="resendBtn" class="bg-btn" style="display: none; font-size: 13px;" onclick="resendTGCode()">Отправить повторно</button>
+              </div>
+            </div>
+
+            <div id="auth2FAStep" style="display: none;">
+              <div style="padding: 12px; background-color: #fef3c7; border-radius: 8px; border-left: 3px solid #f59e0b; margin-bottom: 16px; font-size: 13px; color: #92400e;">
+                <div style="font-weight: 600; margin-bottom: 4px;">🔐 Двухфакторная аутентификация</div>
+                <div>Введите пароль 2FA, который вы установили в настройках Telegram</div>
+              </div>
+              <div class="form-group">
+                <label>Пароль 2FA</label>
+                <input type="password" id="auth2FA" placeholder="Введите пароль 2FA" autocomplete="current-password">
+              </div>
+              <button type="button" class="bp" onclick="verify2FA()">Подтвердить</button>
+              <button type="button" class="bg-btn" style="margin-left: 8px;" onclick="resetAuthFlow()">Отмена</button>
+            </div>
+          </div>
+
+          <div id="authSuccessStep" style="display: none;">
+            <div style="padding: 20px; background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); border-radius: 12px; border: 1px solid #6ee7b7;">
+              <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+                <div style="width: 48px; height: 48px; background-color: #059669; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0;">✓</div>
+                <div>
+                  <div style="font-weight: 700; font-size: 16px; color: #065f46;">Аккаунт авторизован</div>
+                  <div style="font-size: 12px; color: #059669; font-weight: 600; margin-top: 2px;">● AUTHORIZED</div>
+                </div>
+              </div>
+              <div id="tgAccountInfo" style="background-color: rgba(255,255,255,0.6); border-radius: 8px; padding: 12px; margin-bottom: 16px; font-size: 13px; color: #1b2236;">
+                <div style="display: flex; flex-direction: column; gap: 6px;">
+                  <div style="display: flex; gap: 8px;"><span style="color: #6b7280; min-width: 100px;">Имя:</span><span id="tgName" style="font-weight: 600;">—</span></div>
+                  <div style="display: flex; gap: 8px;"><span style="color: #6b7280; min-width: 100px;">Username:</span><span id="tgUsername" style="font-weight: 600;">—</span></div>
+                  <div style="display: flex; gap: 8px;"><span style="color: #6b7280; min-width: 100px;">Телефон:</span><span id="tgPhone2" style="font-weight: 600;">—</span></div>
+                </div>
+              </div>
+              <div style="display: flex; gap: 8px;">
+                <button type="button" class="bs" onclick="tgLogout()" style="font-size: 13px;">Выйти из аккаунта TG</button>
+              </div>
+            </div>
+          </div>
+
+          <div id="authStatus" style="margin-top: 16px; padding: 12px; background-color: #f8fafb; border-radius: 8px; display: none;">
+            <div style="font-size: 12px; color: #95a3b3; font-weight: 600; margin-bottom: 4px;">Статус авторизации</div>
+            <div id="authStatusText" style="font-size: 14px; color: #1b2236; font-weight: 600;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PARSER PAGE -->
+      <div class="page" id="parserPage">
+        <h2 style="font-size: 24px; font-weight: 700; color: #1b2236; margin-bottom: 24px;">Парсер групп</h2>
+
+        <div class="card">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <div class="card-title" style="margin-bottom: 0;">История парсингов</div>
+            <button type="button" class="bp btn-small" onclick="loadParseHistory()">Обновить</button>
+          </div>
+          <div id="parseHistoryList" style="max-height: 200px; overflow-y: auto; border: 1px solid #e5e7eb; border-radius: 8px; background-color: #f9fafb;">
+            <div style="padding: 12px; color: #95a3b3; text-align: center;">Нет сохранённых парсингов</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Настройки парсинга</div>
+          <form id="parserConfigForm">
+            <div class="form-row">
+              <div class="form-group">
+                <label>Ссылка на группу/канал</label>
+                <input type="text" id="parserGroup" placeholder="https://t.me/groupname или @groupname" required>
+              </div>
+              <div class="form-group">
+                <label>Лимит участников</label>
+                <input type="number" id="parserLimit" placeholder="1000" value="1000" min="1">
+              </div>
+            </div>
+            <button type="button" class="bp" onclick="startParser()">Начать парсинг</button>
+            <button type="button" class="bd" id="stopParserBtn" style="display: none; margin-left: 8px;" onclick="stopParser()">Остановить</button>
+          </form>
+
+          <div id="parserProgress" style="display: none; margin-top: 24px;">
+            <div class="progress-label">
+              <span>Прогресс парсинга</span>
+              <span id="parserProgressText">0%</span>
+            </div>
+            <div class="progress-bar">
+              <div class="progress-bar-fill" id="parserProgressBar"></div>
+            </div>
+            <div style="margin-top: 12px; color: #95a3b3; font-size: 13px;">
+              Спарсено: <strong id="parserCount" style="color: #1b2236;">0</strong> участников
+            </div>
+          </div>
+        </div>
+
+        <div class="card" id="parserResultsCard" style="display: none;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <div class="card-title" style="margin-bottom: 0;">Результаты парсинга</div>
+            <div>
+              <button type="button" class="bp btn-small" onclick="exportParserCSV()">📥 Экспорт CSV</button>
+              <button type="button" class="bp btn-small" style="margin-left: 8px;" onclick="sendToInviter()">→ В инвайтинг</button>
+            </div>
+          </div>
+
+          <div style="margin-bottom: 16px;">
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 600; color: #2c3e50;">
+              <input type="checkbox" id="selectAllParser" onchange="toggleSelectAll(this)">
+              Выбрать все
+            </label>
+          </div>
+
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th style="width: 40px;"><input type="checkbox" class="select-checkbox" onchange="updateSelectAll()"></th>
+                  <th>#</th>
+                  <th>Никнейм</th>
+                  <th>Имя</th>
+                  <th>Фамилия</th>
+                  <th>ID</th>
+                  <th>Тип</th>
+                </tr>
+              </thead>
+              <tbody id="parserTable">
+                <!-- Результаты заполнятся JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- INVITE PAGE -->
+      <div class="page" id="invitePage">
+        <h2 style="font-size: 24px; font-weight: 700; color: #1b2236; margin-bottom: 24px;">Инвайтинг</h2>
+
+        <div class="card">
+          <div class="card-title">Настройки инвайтинга</div>
+          <form id="inviteConfigForm">
+            <div class="form-row">
+              <div class="form-group">
+                <label>Целевой канал</label>
+                <input type="text" id="inviteTarget" placeholder="https://t.me/channelname или @channelname" required>
+              </div>
+              <div class="form-group">
+                <label>Задержка между приглашениями (сек)</label>
+                <input type="number" id="inviteDelay" placeholder="5" value="5" min="1">
+              </div>
+            </div>
+          </form>
+
+          <div style="margin-bottom: 20px;">
+            <label style="font-weight: 600; color: #2c3e50; display: block; margin-bottom: 12px;">Выбранные участники</label>
+            <div id="inviteTagsContainer" style="display: flex; flex-wrap: wrap; gap: 8px;">
+              <!-- Теги с выбранными участниками -->
+            </div>
+          </div>
+
+          <div class="form-group full">
+            <label>Или вставьте ID участников вручную (один на строку)</label>
+            <textarea id="inviteManualIds" placeholder="123456789&#10;987654321&#10;555555555"></textarea>
+          </div>
+
+          <button type="button" class="bs" id="startInviteBtn" onclick="startInviter()">Начать инвайтинг</button>
+          <button type="button" class="bd" id="stopInviteBtn" style="display: none; margin-left: 8px;" onclick="stopInviter()">Остановить</button>
+        </div>
+
+        <div class="card" id="inviteProgressCard" style="display: none;">
+          <div class="card-title">Прогресс инвайтинга</div>
+
+          <div class="progress-label">
+            <span>Приглашено / Ошибок</span>
+            <span id="inviteProgressText">0 / 0</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-bar-fill" id="inviteProgressBar"></div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 20px;">
+            <div style="padding: 12px; background-color: #d1fae5; border-radius: 8px; text-align: center;">
+              <div style="font-size: 12px; color: #065f46; font-weight: 600; margin-bottom: 4px;">Успешно</div>
+              <div style="font-size: 24px; font-weight: 700; color: #065f46;" id="inviteSuccess">0</div>
+            </div>
+            <div style="padding: 12px; background-color: #fee2e2; border-radius: 8px; text-align: center;">
+              <div style="font-size: 12px; color: #7f1d1d; font-weight: 600; margin-bottom: 4px;">Ошибок</div>
+              <div style="font-size: 24px; font-weight: 700; color: #7f1d1d;" id="inviteFailed">0</div>
+            </div>
+          </div>
+          <div style="margin-top: 12px; font-size: 13px; color: #95a3b3;">
+            Текущий: <span id="inviteCurrentUser" style="font-weight: 600; color: #1b2236;">—</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- AUTOFILL PAGE -->
+      <div class="page" id="autofillPage">
+        <h2 style="font-size: 24px; font-weight: 700; color: #1b2236; margin-bottom: 24px;">Автонаполнение каналов</h2>
+
+        <div class="card">
+          <div class="card-title">Источники</div>
+          <form id="autofillSourcesForm">
+            <div style="margin-bottom: 16px;">
+              <div class="form-group">
+                <label>Добавить канал-источник</label>
+                <div style="display: flex; gap: 8px;">
+                  <input type="text" id="autofillSourceInput" placeholder="https://t.me/channelname" style="flex: 1;">
+                  <button type="button" class="bp" onclick="addAutofillSource()">Добавить</button>
+                </div>
+              </div>
+            </div>
+
+            <div style="border-top: 1px solid #e8edf2; padding-top: 16px;">
+              <label style="font-weight: 600; display: block; margin-bottom: 12px; color: #2c3e50;">Активные источники:</label>
+              <div id="autofillSourcesList" style="display: flex; flex-direction: column; gap: 8px;">
+                <!-- Источники заполнятся JS -->
+              </div>
+              <div id="autofillNoSources" style="color: #95a3b3; font-size: 14px; text-align: center; padding: 20px;">Нет добавленных источников</div>
+            </div>
+          </form>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Целевой канал</div>
+          <div class="form-group">
+            <label>Канал для автозаполнения</label>
+            <input type="text" id="autofillTarget" placeholder="https://t.me/targetchannel">
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Дополнительные настройки</div>
+          <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 24px;">
+            <label class="toggle-switch">
+              <input type="checkbox" id="autofillTranslate">
+              <span class="toggle-slider"></span>
+            </label>
+            <label style="color: #2c3e50; font-weight: 600; cursor: pointer;">Автоматический перевод сообщений</label>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Правила очистки контента</div>
+          <table>
+            <thead>
+              <tr>
+                <th>Регулярное выражение</th>
+                <th>Замена</th>
+                <th>Действие</th>
+              </tr>
+            </thead>
+            <tbody id="autofillRulesTable">
+              <!-- Правила заполнятся JS -->
+            </tbody>
+          </table>
+
+          <div style="margin-top: 20px;">
+            <label style="font-weight: 600; display: block; margin-bottom: 12px; color: #2c3e50;">Добавить правило</label>
+            <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 12px;">
+              <input type="text" id="newRuleRegex" placeholder="Регулярное выражение">
+              <input type="text" id="newRuleReplacement" placeholder="Замена на">
+              <button type="button" class="bp" onclick="addAutofillRule()">Добавить</button>
+            </div>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 12px; margin-bottom: 32px;">
+          <button type="button" class="bp" onclick="saveAutofillConfig()">💾 Сохранить настройки</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============ STATE MANAGEMENT ============
+let TOKEN = localStorage.getItem('token');
+let currentUser = null;
+let selectedParserUsers = [];
+let autofillSources = [];
+let autofillRules = [];
+
+// ============ API HELPER ============
+async function api(url, opts = {}) {
+  opts.headers = opts.headers || {};
+  if (TOKEN) opts.headers['Authorization'] = 'Bearer ' + TOKEN;
+  const r = await fetch(url, opts);
+
+  if (r.status === 401) {
+    doLogout();
+    throw new Error('Unauthorized');
+  }
+
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.detail || d.message || 'Error');
+  return d;
+}
+
+// ============ TOAST NOTIFICATIONS ============
+function showToast(message, type = 'info') {
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  toast.textContent = message;
+  document.body.appendChild(toast);
+
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    setTimeout(() => toast.remove(), 300);
+  }, 3000);
+}
+
+// ============ AUTH SCREEN ============
+function setupAuthTabs() {
+  document.querySelectorAll('.auth-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      const tabName = tab.dataset.tab;
+
+      document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.auth-form').forEach(f => f.classList.remove('active'));
+
+      tab.classList.add('active');
+      document.querySelector(`.auth-form[data-tab="${tabName}"]`).classList.add('active');
+    });
+  });
+
+  // Login form
+  document.getElementById('loginForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = document.getElementById('loginEmail').value;
+    const password = document.getElementById('loginPassword').value;
+
+    try {
+      const data = await api('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      handleAuthSuccess(data);
+    } catch (err) {
+      showToast('Ошибка входа: ' + err.message, 'error');
+    }
+  });
+
+  // Register form
+  document.getElementById('registerForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const name = document.getElementById('registerName').value;
+    const email = document.getElementById('registerEmail').value;
+    const password = document.getElementById('registerPassword').value;
+
+    if (password.length < 6) {
+      showToast('Пароль должен быть минимум 6 символов', 'error');
+      return;
+    }
+
+    try {
+      const data = await api('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, password })
+      });
+      handleAuthSuccess(data);
+    } catch (err) {
+      showToast('Ошибка регистрации: ' + err.message, 'error');
+    }
+  });
+}
+
+function handleAuthSuccess(data) {
+  TOKEN = data.token;
+  currentUser = data.user || { name: data.name, email: data.email, id: data.id };
+  localStorage.setItem('token', TOKEN);
+  showMainApp();
+}
+
+// ============ GOOGLE OAUTH ============
+async function initGoogle() {
+  try {
+    const settings = await fetch('/api/app-settings').then(r => r.json()).catch(() => ({}));
+    const googleClientId = settings.google_client_id || '';
+
+    if (googleClientId && window.google) {
+      google.accounts.id.initialize({
+        client_id: googleClientId,
+        callback: handleGoogleLogin
+      });
+      google.accounts.id.renderButton(
+        document.getElementById('googleBtn'),
+        { theme: 'outline', size: 'large', width: '100%', text: 'signin_with' }
+      );
+      document.getElementById('googleNoConfig').style.display = 'none';
+    } else {
+      document.getElementById('googleNoConfig').style.display = 'block';
+      document.getElementById('googleBtn').innerHTML = '';
+    }
+  } catch (err) {
+    document.getElementById('googleNoConfig').style.display = 'block';
+  }
+}
+
+async function handleGoogleLogin(response) {
+  try {
+    const data = await api('/api/auth/google', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ credential: response.credential })
+    });
+    handleAuthSuccess(data);
+  } catch (err) {
+    showToast('Google авторизация ошибка: ' + err.message, 'error');
+  }
+}
+
+// ============ MAIN APP SETUP ============
+function showMainApp() {
+  document.getElementById('authContainer').style.display = 'none';
+  document.getElementById('mainContainer').classList.add('active');
+  updateUserInfo();
+  setupNavigation();
+  setupCredentialsForm();
+  switchPage('dashboard');
+  loadCredentials();
+  checkTGAuthStatus();
+  restoreParserState();
+}
+
+function showAuthScreen() {
+  document.getElementById('authContainer').style.display = 'flex';
+  document.getElementById('mainContainer').classList.remove('active');
+}
+
+function updateUserInfo() {
+  if (currentUser) {
+    document.getElementById('userName').textContent = currentUser.name || 'User';
+    document.getElementById('userEmail').textContent = currentUser.email || 'user@example.com';
+    document.getElementById('userAvatar').textContent = (currentUser.name || 'U').charAt(0).toUpperCase();
+    document.getElementById('welcomeMsg').textContent = `Добро пожаловать, ${currentUser.name}!`;
+    document.getElementById('userEmail2').textContent = `Зарегистрирован: ${currentUser.email}`;
+  }
+}
+
+// ============ NAVIGATION ============
+function setupNavigation() {
+  document.querySelectorAll('.sidebar-nav-item').forEach(item => {
+    item.addEventListener('click', () => {
+      const page = item.dataset.page;
+      switchPage(page);
+    });
+  });
+
+  document.getElementById('userMenu').addEventListener('click', () => {
+    document.getElementById('userDropdown').classList.toggle('active');
+  });
+
+  document.getElementById('logoutBtn').addEventListener('click', doLogout);
+
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.topbar-user') && !e.target.closest('.user-dropdown')) {
+      document.getElementById('userDropdown').classList.remove('active');
+    }
+  });
+}
+
+function switchPage(page) {
+  document.querySelectorAll('.sidebar-nav-item').forEach(item => item.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+
+  document.querySelector(`[data-page="${page}"]`).classList.add('active');
+  document.getElementById(`${page}Page`).classList.add('active');
+
+  const titles = {
+    dashboard: 'Личный кабинет',
+    auth: 'Авторизация',
+    parser: 'Парсер групп',
+    invite: 'Инвайтинг',
+    autofill: 'Автонаполнение'
+  };
+  document.getElementById('pageTitle').textContent = titles[page] || page;
+}
+
+// ============ LOGOUT ============
+function doLogout() {
+  localStorage.removeItem('token');
+  TOKEN = null;
+  currentUser = null;
+  showAuthScreen();
+  showToast('Вы вышли из системы', 'info');
+}
+
+// ============ PAGE: АВТОРИЗАЦИЯ ============
+let resendCountdownInterval = null;
+let currentAuthPhone = '';
+let currentAuthCode = '';
+
+function startResendCountdown() {
+  let seconds = 60;
+  const countdownEl = document.getElementById('resendCountdown');
+  const resendBtn = document.getElementById('resendBtn');
+  if (countdownEl) countdownEl.style.display = 'inline';
+  if (resendBtn) resendBtn.style.display = 'none';
+  const timerEl = document.getElementById('resendTimer');
+  if (timerEl) timerEl.textContent = seconds;
+  if (resendCountdownInterval) clearInterval(resendCountdownInterval);
+  resendCountdownInterval = setInterval(() => {
+    seconds--;
+    const t = document.getElementById('resendTimer');
+    if (t) t.textContent = seconds;
+    if (seconds <= 0) {
+      clearInterval(resendCountdownInterval);
+      const c = document.getElementById('resendCountdown');
+      const b = document.getElementById('resendBtn');
+      if (c) c.style.display = 'none';
+      if (b) b.style.display = 'inline-block';
+    }
+  }, 1000);
+}
+
+async function startTGAuth() {
+  const phone = document.getElementById('authPhone').value.trim();
+  if (!phone) { showToast('Введите номер телефона', 'error'); return; }
+  const btn = document.querySelector('#authPhoneStep .bp');
+  if (btn) { btn.disabled = true; btn.textContent = 'Отправка...'; }
+  try {
+    const res = await api('/api/auth/tg/start', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({phone})
+    });
+    currentAuthPhone = phone;
+    if (res.status === 'already_authorized') {
+      showToast(res.message, 'success');
+      showTGSuccess(res);
+      return;
+    }
+    document.getElementById('authPhoneStep').style.display = 'none';
+    document.getElementById('authCodeStep').style.display = 'block';
+    document.getElementById('authStatus').style.display = 'block';
+    document.getElementById('authStatusText').textContent = res.message || 'Код отправлен';
+    const hint = document.getElementById('authCodeHint');
+    if (hint) {
+      if (res.code_type && res.code_type.includes('App')) {
+        hint.textContent = 'Код отправлен в приложение Telegram — откройте Telegram на любом устройстве и проверьте уведомления от "Telegram"';
+      } else if (res.code_type && res.code_type.includes('Sms')) {
+        hint.textContent = 'Код отправлен по SMS на номер ' + phone;
+      } else {
+        hint.textContent = (res.message || 'Проверьте приложение Telegram или SMS');
+      }
+    }
+    document.getElementById('authCode').focus();
+    startResendCountdown();
+  } catch (err) {
+    showToast('Ошибка: ' + err.message, 'error');
+    // If no credentials, highlight the credentials form
+    if (err.message && err.message.includes('API ID')) {
+      const form = document.getElementById('credentialsForm');
+      if (form) {
+        form.scrollIntoView({behavior: 'smooth', block: 'center'});
+        form.style.outline = '2px solid #ef4444';
+        form.style.borderRadius = '8px';
+        setTimeout(() => { form.style.outline = ''; }, 3000);
+      }
+    }
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Отправить код'; }
+  }
+}
+
+async function resendTGCode() {
+  const phone = currentAuthPhone || document.getElementById('authPhone').value.trim();
+  if (!phone) { showToast('Номер телефона не найден', 'error'); return; }
+  const btn = document.getElementById('resendBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Отправка...'; }
+  try {
+    const res = await api('/api/auth/tg/start', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({phone})
+    });
+    showToast('Код отправлен повторно', 'success');
+    document.getElementById('authStatusText').textContent = res.message || 'Код отправлен';
+    document.getElementById('authCode').value = '';
+    document.getElementById('authCode').focus();
+    startResendCountdown();
+  } catch (err) {
+    showToast('Ошибка: ' + err.message, 'error');
+    if (btn) { btn.disabled = false; btn.textContent = 'Отправить повторно'; }
+  }
+}
+
+async function verifyTGCode() {
+  const code = document.getElementById('authCode').value.trim();
+  if (!code) { showToast('Введите код подтверждения', 'error'); return; }
+  currentAuthCode = code;
+  const btn = document.querySelector('#authCodeStep .bp');
+  if (btn) { btn.disabled = true; btn.textContent = 'Проверка...'; }
+  document.getElementById('authStatusText').textContent = 'Проверка кода...';
+  try {
+    const res = await api('/api/auth/tg/verify', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({code})
+    });
+    if (res.status === 'need_password') {
+      document.getElementById('authCodeStep').style.display = 'none';
+      document.getElementById('auth2FAStep').style.display = 'block';
+      document.getElementById('authStatusText').textContent = 'Введите пароль двухфакторной аутентификации';
+      document.getElementById('auth2FA').focus();
+      if (resendCountdownInterval) clearInterval(resendCountdownInterval);
+    } else if (res.status === 'authenticated') {
+      if (resendCountdownInterval) clearInterval(resendCountdownInterval);
+      document.getElementById('authCodeStep').style.display = 'none';
+      document.getElementById('auth2FAStep').style.display = 'none';
+      document.getElementById('authStatus').style.display = 'none';
+      showTGSuccess(res);
+      showToast('Авторизация в Telegram успешна!', 'success');
+    }
+  } catch (err) {
+    showToast('Ошибка: ' + err.message, 'error');
+    document.getElementById('authStatusText').textContent = 'Ошибка: ' + err.message;
+    if (btn) { btn.disabled = false; btn.textContent = 'Подтвердить'; }
+  }
+}
+
+async function verify2FA() {
+  const password = document.getElementById('auth2FA').value;
+  if (!password) { showToast('Введите пароль', 'error'); return; }
+  const btn = document.querySelector('#auth2FAStep .bp');
+  if (btn) { btn.disabled = true; btn.textContent = 'Проверка...'; }
+  document.getElementById('authStatusText').textContent = 'Проверка пароля...';
+  try {
+    const res = await api('/api/auth/tg/verify', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({code: '', password})
+    });
+    if (res.status === 'authenticated') {
+      document.getElementById('auth2FAStep').style.display = 'none';
+      document.getElementById('authStatus').style.display = 'none';
+      showTGSuccess(res);
+      showToast('Авторизация в Telegram успешна!', 'success');
+    }
+  } catch (err) {
+    showToast('Ошибка: ' + err.message, 'error');
+    document.getElementById('authStatusText').textContent = 'Ошибка: ' + err.message;
+    if (btn) { btn.disabled = false; btn.textContent = 'Подтвердить'; }
+  }
+}
+
+function showTGSuccess(info) {
+  document.getElementById('authFlow').style.display = 'none';
+  document.getElementById('authSuccessStep').style.display = 'block';
+  fillTGAccountInfo(info);
+}
+
+function fillTGAccountInfo(info) {
+  const name = [info.tg_first_name, info.tg_last_name].filter(Boolean).join(' ') || '—';
+  const username = info.tg_username ? '@' + info.tg_username : '—';
+  const phone = info.tg_phone || '—';
+  const nameEl = document.getElementById('tgName');
+  const usernameEl = document.getElementById('tgUsername');
+  const phoneEl = document.getElementById('tgPhone2');
+  if (nameEl) nameEl.textContent = name;
+  if (usernameEl) usernameEl.textContent = username;
+  if (phoneEl) phoneEl.textContent = phone;
+}
+
+async function tgLogout() {
+  if (!confirm('Выйти из аккаунта Telegram? Это удалит сессию.')) return;
+  try {
+    await api('/api/auth/tg/logout', {method: 'POST'});
+    showToast('Сессия Telegram удалена', 'info');
+    resetAuthFlow();
+  } catch (err) {
+    showToast('Ошибка: ' + err.message, 'error');
+  }
+}
+
+function resetAuthFlow() {
+  document.getElementById('authFlow').style.display = 'block';
+  if (resendCountdownInterval) clearInterval(resendCountdownInterval);
+  currentAuthPhone = '';
+  document.getElementById('authPhoneStep').style.display = 'block';
+  document.getElementById('authCodeStep').style.display = 'none';
+  document.getElementById('auth2FAStep').style.display = 'none';
+  document.getElementById('authSuccessStep').style.display = 'none';
+  document.getElementById('authStatus').style.display = 'none';
+  document.getElementById('authPhone').value = '';
+  document.getElementById('authCode').value = '';
+  document.getElementById('auth2FA').value = '';
+  currentAuthCode = '';
+}
+
+// ============ PAGE: ПАРСЕР ГРУПП ============
+let parserPollInterval = null;
+let parsedMembersData = [];
+let parseHistory = [];
+
+// Parse History Management
+function saveParseToHistory(group, members) {
+  const entry = {
+    id: Date.now(),
+    group: group,
+    count: members.length,
+    timestamp: new Date().toLocaleString('ru-RU'),
+    members: members
+  };
+  parseHistory.unshift(entry);  // Add to beginning
+  parseHistory = parseHistory.slice(0, 20);  // Keep last 20
+  localStorage.setItem('parseHistory', JSON.stringify(parseHistory));
+  loadParseHistory();
+}
+
+function loadParseHistory() {
+  const saved = localStorage.getItem('parseHistory');
+  parseHistory = saved ? JSON.parse(saved) : [];
+  
+  const list = document.getElementById('parseHistoryList');
+  if (!parseHistory.length) {
+    list.innerHTML = '<div style="padding: 12px; color: #95a3b3; text-align: center;">Нет сохранённых парсингов</div>';
+    return;
+  }
+  
+  list.innerHTML = parseHistory.map((e, i) => `
+    <div style="padding: 12px; border-bottom: 1px solid #e5e7eb; cursor: pointer; display: flex; justify-content: space-between; align-items: center; hover: background-color: #f0f4f8;" onclick="loadParseFromHistory(${i})">
+      <div>
+        <div style="font-weight: 600; color: #1b2236;">${e.group}</div>
+        <div style="font-size: 12px; color: #95a3b3;">${e.count} участников · ${e.timestamp}</div>
+      </div>
+      <div style="color: #3b82f6;">▶</div>
+    </div>
+  `).join('');
+}
+
+function loadParseFromHistory(idx) {
+  const entry = parseHistory[idx];
+  parsedMembersData = entry.members;
+  renderParserTable(parsedMembersData);
+  document.getElementById('parserConfigForm').style.display = 'none';
+  document.getElementById('parserProgress').style.display = 'none';
+  document.getElementById('parserResultsCard').style.display = 'block';
+  showToast(`Загружено: ${entry.group} (${entry.count} участников)`, 'info');
+  // Move to top of history
+  parseHistory.splice(idx, 1);
+  parseHistory.unshift(entry);
+  localStorage.setItem('parseHistory', JSON.stringify(parseHistory));
+  loadParseHistory();
+}
+
+function clearParseHistory() {
+  if (confirm('Удалить всю историю парсингов?')) {
+    parseHistory = [];
+    localStorage.removeItem('parseHistory');
+    loadParseHistory();
+    showToast('История очищена', 'info');
+  }
+}
+
+
+async function startParser() {
+  const group = document.getElementById('parserGroup').value.trim();
+  const limit = parseInt(document.getElementById('parserLimit').value) || 1000;
+  if (!group) { showToast('Введите ссылку на группу', 'error'); return; }
+
+  const btn = document.querySelector('#parserConfigForm .bp');
+  if (btn) { btn.disabled = true; btn.textContent = 'Запуск...'; }
+
+  try {
+    await api('/api/parse/start', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({group, limit})
+    });
+    document.getElementById('parserConfigForm').style.display = 'none';
+    document.getElementById('stopParserBtn').style.display = 'inline-block';
+    document.getElementById('parserProgress').style.display = 'block';
+    document.getElementById('parserResultsCard').style.display = 'none';
+    startParserPolling();
+  } catch (err) {
+    showToast('Ошибка: ' + err.message, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Начать парсинг'; }
+  }
+}
+
+function startParserPolling() {
+  if (parserPollInterval) clearInterval(parserPollInterval);
+  parserPollInterval = setInterval(async () => {
+    try {
+      const s = await api('/api/parse/status');
+      const pct = s.total > 0 ? Math.round((s.progress / s.total) * 100) : 0;
+      document.getElementById('parserProgressBar').style.width = pct + '%';
+      document.getElementById('parserProgressText').textContent = pct + '%';
+      document.getElementById('parserCount').textContent = s.progress || 0;
+      if (s.total > 0) {
+        document.getElementById('parserCount').textContent = s.progress + ' / ' + s.total;
+      }
+      if (s.status === 'done') {
+        clearInterval(parserPollInterval);
+        document.getElementById('stopParserBtn').style.display = 'none';
+        await loadParserResults();
+      } else if (s.status === 'error') {
+        clearInterval(parserPollInterval);
+        document.getElementById('parserConfigForm').style.display = 'block';
+        document.getElementById('stopParserBtn').style.display = 'none';
+        document.getElementById('parserProgress').style.display = 'none';
+        showToast('Ошибка парсинга: ' + s.error, 'error');
+      }
+    } catch (err) { /* ignore */ }
+  }, 1500);
+}
+
+async function stopParser() {
+  try { await api('/api/parse/stop', {method: 'POST'}); } catch(e) {}
+  if (parserPollInterval) clearInterval(parserPollInterval);
+  document.getElementById('parserConfigForm').style.display = 'block';
+  document.getElementById('stopParserBtn').style.display = 'none';
+  document.getElementById('parserProgress').style.display = 'none';
+  showToast('Парсинг остановлен', 'info');
+}
+
+async function loadParserResults() {
+  try {
+    const data = await api('/api/parse/results');
+    parsedMembersData = data.members || [];
+    renderParserTable(parsedMembersData);
+    document.getElementById('parserResultsCard').style.display = 'block';
+    const group = document.getElementById('parserGroup').value;
+    saveParseToHistory(group, parsedMembersData);
+    showToast('Парсинг завершён! ' + parsedMembersData.length + ' участников', 'success');
+  } catch (err) {
+    showToast('Ошибка загрузки результатов: ' + err.message, 'error');
+  }
+}
+
+function renderParserTable(members) {
+  const tbody = document.getElementById('parserTable');
+  if (!members.length) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#95a3b3;">Нет результатов</td></tr>'; return; }
+  tbody.innerHTML = members.map((u, i) => `
+    <tr>
+      <td><input type="checkbox" class="select-checkbox" data-username="${u.username}" data-id="${u.id}" onchange="updateSelectAll()"></td>
+      <td>${i + 1}</td>
+      <td>${u.username ? '@' + u.username : '—'}</td>
+      <td>${u.first_name || '—'}</td>
+      <td>${u.last_name || '—'}</td>
+      <td>${u.id}</td>
+      <td><span class="pill ${u.is_bot ? 'p-red' : 'p-blue'}">${u.is_bot ? 'Bot' : 'User'}</span></td>
+    </tr>
+  `).join('');
+}
+
+function toggleSelectAll(checkbox) {
+  document.querySelectorAll('.select-checkbox').forEach(cb => { cb.checked = checkbox.checked; });
+  updateSelectAll();
+}
+
+function updateSelectAll() {
+  const checkboxes = document.querySelectorAll('.select-checkbox');
+  const selectAll = document.getElementById('selectAllParser');
+  if (selectAll) selectAll.checked = checkboxes.length > 0 && Array.from(checkboxes).every(cb => cb.checked);
+}
+
+async function exportParserCSV() {
+  try {
+    const resp = await fetch('/api/parse/export', {headers: {'Authorization': 'Bearer ' + TOKEN}});
+    if (!resp.ok) { showToast('Нет данных для экспорта', 'error'); return; }
+    const blob = await resp.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'members.csv'; a.click();
+    URL.revokeObjectURL(url);
+    showToast('CSV экспортирован', 'success');
+  } catch (err) { showToast('Ошибка: ' + err.message, 'error'); }
+}
+
+function sendToInviter() {
+  const selected = Array.from(document.querySelectorAll('.select-checkbox:checked'));
+  if (!selected.length) { showToast('Выберите участников', 'error'); return; }
+  const usernames = selected.map(cb => cb.dataset.username).filter(u => u && u !== 'undefined');
+  if (!usernames.length) { showToast('У выбранных участников нет username', 'error'); return; }
+
+  // Store for inviter
+  window._inviterUsers = usernames;
+
+  const tags = document.getElementById('inviteTagsContainer');
+  if (tags) {
+    tags.innerHTML = usernames.slice(0, 20).map(u =>
+      `<span class="pill p-blue">@${u}</span>`
+    ).join('') + (usernames.length > 20 ? `<span class="pill p-blue">+${usernames.length - 20} ещё</span>` : '');
+  }
+
+  switchPage('invite');
+  showToast(usernames.length + ' участников перенесены в инвайтинг', 'success');
+}
+
+// ============ PAGE: ИНВАЙТИНГ ============
+let inviterPollInterval = null;
+
+async function startInviter() {
+  const target = document.getElementById('inviteTarget').value.trim();
+  const delay = parseInt(document.getElementById('inviteDelay')?.value) || 5;
+  if (!target) { showToast('Введите целевой канал/группу', 'error'); return; }
+
+  const users = window._inviterUsers || [];
+  if (!users.length) { showToast('Нет участников для инвайтинга. Сначала спарсите и выберите участников.', 'error'); return; }
+
+  const btn = document.getElementById('startInviteBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Запуск...'; }
+
+  try {
+    await api('/api/invite/start', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({target, users, delay})
+    });
+    document.getElementById('inviteConfigForm').style.display = 'none';
+    if (btn) btn.style.display = 'none';
+    document.getElementById('stopInviteBtn').style.display = 'inline-block';
+    document.getElementById('inviteProgressCard').style.display = 'block';
+    startInviterPolling();
+  } catch (err) {
+    showToast('Ошибка: ' + err.message, 'error');
+    if (btn) { btn.disabled = false; btn.textContent = 'Начать инвайтинг'; }
+  }
+}
+
+function startInviterPolling() {
+  if (inviterPollInterval) clearInterval(inviterPollInterval);
+  inviterPollInterval = setInterval(async () => {
+    try {
+      const s = await api('/api/invite/status');
+      const total = s.total || 1;
+      const done = s.done || 0;
+      const failed = s.failed || 0;
+      const pct = Math.round(((done + failed) / total) * 100);
+      document.getElementById('inviteProgressBar').style.width = pct + '%';
+      document.getElementById('inviteProgressText').textContent = `${done + failed} / ${total}`;
+      document.getElementById('inviteSuccess').textContent = done;
+      document.getElementById('inviteFailed').textContent = failed;
+      if (s.current) document.getElementById('inviteCurrentUser').textContent = '@' + s.current;
+
+      if (s.status === 'done' || s.status === 'error') {
+        clearInterval(inviterPollInterval);
+        document.getElementById('stopInviteBtn').style.display = 'none';
+        const startBtn = document.getElementById('startInviteBtn');
+        if (startBtn) { startBtn.style.display = 'inline-block'; startBtn.disabled = false; startBtn.textContent = 'Начать инвайтинг'; }
+        if (s.status === 'error') showToast('Ошибка: ' + s.error, 'error');
+        else showToast('Инвайтинг завершён! Добавлено: ' + done + ', ошибок: ' + failed, 'success');
+      }
+    } catch (err) { /* ignore */ }
+  }, 2000);
+}
+
+async function stopInviter() {
+  try { await api('/api/invite/stop', {method: 'POST'}); } catch(e) {}
+  if (inviterPollInterval) clearInterval(inviterPollInterval);
+  document.getElementById('inviteConfigForm').style.display = 'block';
+  const startBtn = document.getElementById('startInviteBtn');
+  if (startBtn) { startBtn.style.display = 'inline-block'; startBtn.disabled = false; startBtn.textContent = 'Начать инвайтинг'; }
+  document.getElementById('stopInviteBtn').style.display = 'none';
+  document.getElementById('inviteProgressCard').style.display = 'none';
+  showToast('Инвайтинг остановлен', 'info');
+}
+
+// ============ PAGE: АВТОНАПОЛНЕНИЕ ============
+function addAutofillSource() {
+  const input = document.getElementById('autofillSourceInput');
+  const source = input.value.trim();
+
+  if (!source) {
+    showToast('Введите ссылку на канал', 'error');
+    return;
+  }
+
+  if (!autofillSources.includes(source)) {
+    autofillSources.push(source);
+  }
+
+  input.value = '';
+  renderAutofillSources();
+  showToast('Источник добавлен', 'success');
+}
+
+function renderAutofillSources() {
+  const list = document.getElementById('autofillSourcesList');
+  const noSources = document.getElementById('autofillNoSources');
+
+  if (autofillSources.length === 0) {
+    list.innerHTML = '';
+    noSources.style.display = 'block';
+    return;
+  }
+
+  noSources.style.display = 'none';
+  list.innerHTML = autofillSources.map((source, i) => `
+    <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background-color: #f8fafb; border-radius: 8px;">
+      <span style="color: #2c3e50; font-weight: 500;">${source}</span>
+      <button type="button" class="bg-btn btn-small" onclick="removeAutofillSource(${i})">Удалить</button>
+    </div>
+  `).join('');
+}
+
+function removeAutofillSource(index) {
+  autofillSources.splice(index, 1);
+  renderAutofillSources();
+  showToast('Источник удален', 'info');
+}
+
+function addAutofillRule() {
+  const regex = document.getElementById('newRuleRegex').value;
+  const replacement = document.getElementById('newRuleReplacement').value;
+
+  if (!regex) {
+    showToast('Введите регулярное выражение', 'error');
+    return;
+  }
+
+  autofillRules.push({ regex, replacement });
+  document.getElementById('newRuleRegex').value = '';
+  document.getElementById('newRuleReplacement').value = '';
+  renderAutofillRules();
+  showToast('Правило добавлено', 'success');
+}
+
+function renderAutofillRules() {
+  const tbody = document.getElementById('autofillRulesTable');
+  tbody.innerHTML = autofillRules.map((rule, i) => `
+    <tr>
+      <td><code style="background-color: #f8fafb; padding: 4px 8px; border-radius: 4px; font-size: 12px;">${rule.regex}</code></td>
+      <td><code style="background-color: #f8fafb; padding: 4px 8px; border-radius: 4px; font-size: 12px;">${rule.replacement}</code></td>
+      <td><button type="button" class="bd btn-small" onclick="removeAutofillRule(${i})">Удалить</button></td>
+    </tr>
+  `).join('');
+}
+
+function removeAutofillRule(index) {
+  autofillRules.splice(index, 1);
+  renderAutofillRules();
+  showToast('Правило удалено', 'info');
+}
+
+function saveAutofillConfig() {
+  showToast('Настройки автонаполнения сохранены', 'success');
+}
+
+// ============ CREDENTIALS FORM ============
+function setupCredentialsForm() {
+  const form = document.getElementById('credentialsForm');
+  if (!form || form.dataset.bound) return;
+  form.dataset.bound = '1';
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const apiId = document.getElementById('apiId').value.trim();
+    const apiHash = document.getElementById('apiHash').value.trim();
+    if (!apiId || !apiHash) { showToast('Заполните оба поля', 'error'); return; }
+    const btn = form.querySelector('button[type="submit"]');
+    btn.disabled = true; btn.textContent = 'Сохранение...';
+    try {
+      await api('/api/credentials', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({api_id: apiId, api_hash: apiHash})
+      });
+      showToast('API credentials сохранены!', 'success');
+      btn.textContent = '✓ Сохранено';
+      setTimeout(() => { btn.textContent = 'Сохранить учётные данные'; }, 2000);
+    } catch (err) {
+      showToast('Ошибка: ' + err.message, 'error');
+    } finally {
+      btn.disabled = false;
+    }
+  });
+}
+
+async function loadCredentials() {
+  try {
+    const data = await api('/api/credentials');
+    if (data.api_id) document.getElementById('apiId').value = data.api_id;
+    if (data.api_hash) document.getElementById('apiHash').value = data.api_hash;
+  } catch (err) { /* ignore */ }
+}
+
+async function checkTGAuthStatus() {
+  try {
+    const data = await api('/api/auth/tg/status');
+    if (data.session_exists && data.status === 'authenticated') {
+      document.getElementById('authFlow').style.display = 'none';
+      showTGSuccess(data);
+    }
+  } catch (err) { /* ignore */ }
+}
+
+async function restoreParserState() {
+  loadParseHistory();  // Load from localStorage on page load
+
+  try {
+    const s = await api('/api/parse/status');
+    if (s.status === 'running') {
+      // Parser is running — restore progress UI and start polling
+      document.getElementById('parserConfigForm').style.display = 'none';
+      document.getElementById('stopParserBtn').style.display = 'inline-block';
+      document.getElementById('parserProgress').style.display = 'block';
+      startParserPolling();
+    } else if (s.status === 'done' && s.count > 0) {
+      // Has results — restore them
+      document.getElementById('parserConfigForm').style.display = 'none';
+      document.getElementById('parserProgress').style.display = 'block';
+      document.getElementById('parserProgressBar').style.width = '100%';
+      document.getElementById('parserProgressText').textContent = '100%';
+      document.getElementById('parserCount').textContent = s.progress + ' / ' + s.total;
+      await loadParserResults();
+    } else {
+      // No active parse — make sure form is visible
+      document.getElementById('parserConfigForm').style.display = 'block';
+      document.getElementById('stopParserBtn').style.display = 'none';
+      document.getElementById('parserProgress').style.display = 'none';
+      document.getElementById('parserResultsCard').style.display = 'none';
+    }
+  } catch (err) { /* ignore */ }
+}
+
+// ============ INITIALIZATION ============
+async function init() {
+  setupAuthTabs();
+  initGoogle();
+
+  if (TOKEN) {
+    try {
+      const me = await api('/api/auth/me');
+      currentUser = me.user || me;
+      showMainApp();
+    } catch (err) {
+      showAuthScreen();
+    }
+  } else {
+    showAuthScreen();
+  }
+}
+
+// Start app
+window.addEventListener('DOMContentLoaded', init);
+</script>
+
 </body>
 </html>
