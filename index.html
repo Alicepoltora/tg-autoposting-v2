@@ -1500,6 +1500,43 @@
         </div>
 
         <div class="card">
+          <div class="card-title">Быстрые правила очистки</div>
+
+          <div style="display: flex; align-items: flex-start; gap: 14px; padding: 12px 14px; background: #f8fafb; border-radius: 10px; border: 1px solid #e8edf2; margin-bottom: 10px;">
+            <label class="toggle-switch" style="margin-top: 2px; flex-shrink: 0;">
+              <input type="checkbox" id="quickRuleTgLinks" onchange="syncTgLinksToggle()">
+              <span class="toggle-slider"></span>
+            </label>
+            <div>
+              <div style="font-weight: 600; color: #2c3e50; font-size: 14px;">Удалять Telegram-ссылки</div>
+              <div style="font-size: 12px; color: #64748b; margin-top: 3px;">t.me/..., @упоминания, tg:// в каналах, ботах, группах и аккаунтах</div>
+            </div>
+          </div>
+
+          <div style="display: flex; align-items: flex-start; gap: 14px; padding: 12px 14px; background: #f8fafb; border-radius: 10px; border: 1px solid #e8edf2; margin-bottom: 10px;">
+            <label class="toggle-switch" style="margin-top: 2px; flex-shrink: 0;">
+              <input type="checkbox" id="quickRuleAllLinks" onchange="syncAllLinksToggle()">
+              <span class="toggle-slider"></span>
+            </label>
+            <div>
+              <div style="font-weight: 600; color: #2c3e50; font-size: 14px;">Удалять все ссылки</div>
+              <div style="font-size: 12px; color: #64748b; margin-top: 3px;">HTTP/HTTPS, www., FTP — включая ссылки на сайты, файлы и Telegram-адреса</div>
+            </div>
+          </div>
+
+          <div style="display: flex; align-items: flex-start; gap: 14px; padding: 12px 14px; background: #f8fafb; border-radius: 10px; border: 1px solid #e8edf2;">
+            <label class="toggle-switch" style="margin-top: 2px; flex-shrink: 0;">
+              <input type="checkbox" id="quickRuleAds">
+              <span class="toggle-slider"></span>
+            </label>
+            <div>
+              <div style="font-weight: 600; color: #2c3e50; font-size: 14px;">Фильтр рекламы</div>
+              <div style="font-size: 12px; color: #64748b; margin-top: 3px;">Пропускать посты со словами «реклама», «промо», «партнёр» · Обрезать реферальные хвосты (?ref=, ?utm_...)</div>
+            </div>
+          </div>
+        </div>
+
+                <div class="card">
           <div class="card-title">Правила очистки контента</div>
           <table>
             <thead>
@@ -2503,6 +2540,13 @@ async function loadAutofillConfig() {
     if (intv) intv.value = cfg.check_interval || 5;
     autofillRules = cfg.rules || [];
     renderAutofillRules();
+    const qr = cfg.quick_rules || {};
+    const qrTg = document.getElementById('quickRuleTgLinks');
+    if (qrTg) qrTg.checked = !!qr.tg_links;
+    const qrAll = document.getElementById('quickRuleAllLinks');
+    if (qrAll) qrAll.checked = !!qr.all_links;
+    const qrAds = document.getElementById('quickRuleAds');
+    if (qrAds) qrAds.checked = !!qr.ads;
     const st = await api('/api/autofill/status');
     updateAutofillStatusUI(st);
     if (st.running) startAutofillPolling();
@@ -2513,11 +2557,16 @@ async function saveAutofillConfig() {
   const target = document.getElementById('autofillTarget')?.value.trim() || '';
   const translate = document.getElementById('autofillTranslate')?.checked || false;
   const check_interval = parseInt(document.getElementById('autofillInterval')?.value) || 5;
+  const quick_rules = {
+    tg_links: document.getElementById('quickRuleTgLinks')?.checked || false,
+    all_links: document.getElementById('quickRuleAllLinks')?.checked || false,
+    ads: document.getElementById('quickRuleAds')?.checked || false,
+  };
   try {
     await api('/api/autofill/config', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ sources: autofillSources, target, translate, rules: autofillRules, check_interval })
+      body: JSON.stringify({ sources: autofillSources, target, translate, rules: autofillRules, check_interval, quick_rules })
     });
     showToast('Настройки сохранены', 'success');
   } catch(e) { showToast('Ошибка: ' + e.message, 'error'); }
@@ -2583,6 +2632,19 @@ function updateAutofillStatusUI(s) {
     if (startBtn) { startBtn.style.display = 'inline-block'; startBtn.disabled = false; startBtn.textContent = '▶ Запустить'; }
     if (errDiv) errDiv.style.display = 'none';
   }
+}
+
+function syncTgLinksToggle() {
+  // If tg_links is disabled, also disable all_links (subset)
+  const tg = document.getElementById('quickRuleTgLinks');
+  const all = document.getElementById('quickRuleAllLinks');
+  if (!tg.checked && all) all.checked = false;
+}
+function syncAllLinksToggle() {
+  // all_links is a superset — when enabled, tg_links is implied
+  const tg = document.getElementById('quickRuleTgLinks');
+  const all = document.getElementById('quickRuleAllLinks');
+  if (all.checked && tg) tg.checked = true;
 }
 
 function startAutofillPolling() {

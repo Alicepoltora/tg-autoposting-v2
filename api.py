@@ -1041,7 +1041,7 @@ def read_autofill_config(uid) -> dict:
     if f.exists():
         try: return json.loads(f.read_text())
         except: pass
-    return {"sources": [], "target": "", "translate": False, "rules": [], "check_interval": 5}
+    return {"sources": [], "target": "", "translate": False, "rules": [], "check_interval": 5, "quick_rules": {}}
 
 def write_autofill_config(uid, data: dict):
     udir(uid).mkdir(parents=True, exist_ok=True)
@@ -1083,6 +1083,47 @@ def apply_autofill_rules(text: str, rules: list) -> str:
         except re.error as e:
             logger.warning(f"Invalid regex '{pattern}': {e}")
     return text
+
+def apply_quick_rules(text: str, quick_rules: dict) -> tuple:
+    """Apply preset quick cleanup rules. Returns (cleaned_text, should_skip)."""
+    import re
+    if not text:
+        return text, False
+
+    # ── Rule 3: Ads filter — skip post if it contains ad words, strip referral tails ──
+    if quick_rules.get("ads"):
+        ad_pattern = (r'\b(реклам[аеуыийь]?|рекл\.|промо|promo|партнёр[а-я]*|партнер[а-я]*'
+                      r'|advertisement|sponsored|affiliate)\b')
+        if re.search(ad_pattern, text, re.IGNORECASE):
+            return text, True  # Skip entire post
+        # Strip referral/UTM query params from any URL in the text
+        text = re.sub(
+            r'(?<=[?&])(ref|referral|utm_\w+|aff|affiliate|promo|r)=[^&\s#]*(&?)',
+            '', text)
+        # Clean up dangling ? or & after stripping
+        text = re.sub(r'\?(?=[\s\n]|$)', '', text)
+        text = re.sub(r'&(?=[\s\n]|$)', '', text)
+
+    # ── Rule 2: Remove ALL links (superset of rule 1) ──
+    if quick_rules.get("all_links"):
+        text = re.sub(r'https?://\S+', '', text)
+        text = re.sub(r'ftp://\S+', '', text)
+        text = re.sub(r'www\.\S+', '', text)
+
+    # ── Rule 1: Remove only Telegram links and @mentions ──
+    elif quick_rules.get("tg_links"):
+        text = re.sub(r'https?://t\.me\S*', '', text)
+        text = re.sub(r'https?://telegram\.(?:me|dog|org)\S*', '', text)
+        text = re.sub(r'tg://\S+', '', text)
+        # @username — only if it looks like a TG handle (letters/digits/underscore, 5+ chars)
+        text = re.sub(r'@[a-zA-Z][a-zA-Z0-9_]{4,}', '', text)
+
+    # Clean up extra whitespace left after removals
+    text = re.sub(r'\n{3,}', '\n\n', text)
+    text = re.sub(r' {2,}', ' ', text)
+    text = text.strip()
+
+    return text, False
 
 # ─── AUTOFILL STATE ───
 autofill_states = {}
@@ -1155,6 +1196,7 @@ async def _do_autofill(uid: int):
             target = config.get("target", "")
             do_translate = config.get("translate", False)
             rules = config.get("rules", [])
+            quick_rules = config.get("quick_rules", {})
             check_interval = max(1, int(config.get("check_interval", 5))) * 60
 
             if not sources or not target:
@@ -1179,14 +1221,35 @@ async def _do_autofill(uid: int):
                         if not af["running"]: break
                         try:
                             text = msg.text or ""
-                            modified = bool(rules or do_translate)
+                            modified = bool(rules or do_translate or quick_rules)
 
+                            # ── Quick rules (TG links / all links / ads filter) ──
+                            should_skip = False
+                            if quick_rules:
+                                text, should_skip = apply_quick_rules(text, quick_rules)
+
+                            if should_skip:
+                                last_ids[source] = msg.id
+                                write_autofill_last_ids(uid, last_ids)
+                                logger.info(f"Autofill skipped ad post id={msg.id} from {source}")
+                                continue
+
+                            # ── Custom regex rules ──
                             if rules and text:
                                 text = apply_autofill_rules(text, rules)
+
+                            # ── Translation ──
                             if do_translate and text:
                                 text = await asyncio.get_event_loop().run_in_executor(
                                     None, translate_text, text)
 
+                            # Skip text-only posts that became empty after cleaning
+                            if not text and not msg.media:
+                                last_ids[source] = msg.id
+                                write_autofill_last_ids(uid, last_ids)
+                                continue
+
+                            # ── Forward / send ──
                             if msg.media and not modified:
                                 await asyncio.wait_for(
                                     client.forward_messages(tgt_entity, msg, src_entity), timeout=30)
@@ -1240,6 +1303,7 @@ class AutofillConfigReq(BaseModel):
     translate: bool = False
     rules: list = []
     check_interval: int = 5  # minutes
+    quick_rules: dict = {}   # {tg_links, all_links, ads}
 
 # ─── AUTOFILL ENDPOINTS ───
 @app.get("/api/autofill/config")
