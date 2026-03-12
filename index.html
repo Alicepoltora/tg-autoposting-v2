@@ -1491,11 +1491,17 @@
             </label>
             <label style="color: #2c3e50; font-weight: 600; cursor: pointer;">Автоматический перевод на русский (Google Translate)</label>
           </div>
-          <div style="display: flex; align-items: center; gap: 12px;">
+          <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 14px;">
             <label style="font-weight: 600; font-size: 14px; color: #2c3e50; white-space: nowrap;">Проверять каждые</label>
             <input type="number" id="autofillInterval" value="5" min="1" max="1440"
                    style="width: 70px; padding: 8px 10px; border: 1px solid #e8edf2; border-radius: 8px; font-size: 14px; background: #f8fafb;">
             <span style="font-size: 14px; color: #64748b;">минут</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <label style="font-weight: 600; font-size: 14px; color: #2c3e50; white-space: nowrap;">Подтянуть посты за последние</label>
+            <input type="number" id="autofillLookback" value="0" min="0" max="720"
+                   style="width: 70px; padding: 8px 10px; border: 1px solid #e8edf2; border-radius: 8px; font-size: 14px; background: #f8fafb;">
+            <span style="font-size: 14px; color: #64748b;">ч (с момента запуска, 0 = только новые)</span>
           </div>
         </div>
 
@@ -1563,13 +1569,16 @@
 
         <div class="card" id="autofillStatusCard" style="display: none;">
           <div class="card-title">Статус автонаполнения</div>
-          <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+          <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap;">
             <span id="autofillStatusBadge" style="display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 13px; font-weight: 700; background: #d1fae5; color: #065f46;">● Запущено</span>
-            <span style="font-size: 13px; color: #64748b;">Переслано постов: <strong id="autofillForwarded">0</strong></span>
+            <span style="font-size: 13px; color: #64748b;">Переслано: <strong id="autofillForwarded">0</strong></span>
+            <span style="font-size: 13px; color: #64748b;">Пропущено: <strong id="autofillSkipped">0</strong></span>
+            <span style="font-size: 13px; color: #64748b;">Проверок: <strong id="autofillChecks">0</strong></span>
           </div>
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 13px; color: #64748b;">
             <div>Текущий источник: <span id="autofillCurrentSource" style="color: #1b2236; font-weight: 600;">—</span></div>
             <div>Последняя активность: <span id="autofillLastActivity" style="color: #1b2236; font-weight: 600;">—</span></div>
+            <div>Следующая проверка: <span id="autofillNextCheck" style="color: #1b2236; font-weight: 600;">—</span></div>
           </div>
           <div id="autofillErrorMsg" style="display: none; margin-top: 12px; padding: 8px 12px; background: #fee2e2; border-radius: 8px; font-size: 13px; color: #7f1d1d;"></div>
         </div>
@@ -2538,6 +2547,8 @@ async function loadAutofillConfig() {
     if (tr) tr.checked = !!cfg.translate;
     const intv = document.getElementById('autofillInterval');
     if (intv) intv.value = cfg.check_interval || 5;
+    const lbk = document.getElementById('autofillLookback');
+    if (lbk) lbk.value = cfg.lookback_hours || 0;
     autofillRules = cfg.rules || [];
     renderAutofillRules();
     const qr = cfg.quick_rules || {};
@@ -2557,6 +2568,7 @@ async function saveAutofillConfig() {
   const target = document.getElementById('autofillTarget')?.value.trim() || '';
   const translate = document.getElementById('autofillTranslate')?.checked || false;
   const check_interval = parseInt(document.getElementById('autofillInterval')?.value) || 5;
+  const lookback_hours = parseInt(document.getElementById('autofillLookback')?.value) || 0;
   const quick_rules = {
     tg_links: document.getElementById('quickRuleTgLinks')?.checked || false,
     all_links: document.getElementById('quickRuleAllLinks')?.checked || false,
@@ -2566,7 +2578,7 @@ async function saveAutofillConfig() {
     await api('/api/autofill/config', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ sources: autofillSources, target, translate, rules: autofillRules, check_interval, quick_rules })
+      body: JSON.stringify({ sources: autofillSources, target, translate, rules: autofillRules, check_interval, quick_rules, lookback_hours })
     });
     showToast('Настройки сохранены', 'success');
   } catch(e) { showToast('Ошибка: ' + e.message, 'error'); }
@@ -2611,6 +2623,12 @@ function updateAutofillStatusUI(s) {
   const stopBtn = document.getElementById('stopAutofillBtn');
   if (!badge) return;
   if (fwd) fwd.textContent = s.forwarded || 0;
+  const skp = document.getElementById('autofillSkipped');
+  if (skp) skp.textContent = s.skipped || 0;
+  const chk = document.getElementById('autofillChecks');
+  if (chk) chk.textContent = s.check_count || 0;
+  const nxt = document.getElementById('autofillNextCheck');
+  if (nxt) nxt.textContent = s.next_check_at || '—';
   if (src) src.textContent = s.current_source ? s.current_source : '—';
   if (act) act.textContent = s.last_activity || '—';
   if (s.status === 'running' || s.status === 'starting') {
