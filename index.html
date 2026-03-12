@@ -1455,11 +1455,11 @@
           <div class="card-title">Источники</div>
           <form id="autofillSourcesForm">
             <div style="margin-bottom: 16px;">
-              <div class="form-group">
-                <label>Добавить канал-источник</label>
-                <div style="display: flex; gap: 8px;">
-                  <input type="text" id="autofillSourceInput" placeholder="https://t.me/channelname" style="flex: 1;">
-                  <button type="button" class="bp" onclick="addAutofillSource()">Добавить</button>
+              <div style="margin-bottom: 4px;">
+                <label style="display: block; font-weight: 600; font-size: 14px; color: #2c3e50; margin-bottom: 8px;">Добавить канал-источник</label>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                  <input type="text" id="autofillSourceInput" placeholder="https://t.me/channelname" style="flex: 1; min-width: 0; width: 0; padding: 10px 14px; border: 1px solid #e8edf2; border-radius: 8px; font-size: 14px; background: #f8fafb;">
+                  <button type="button" class="bp btn-small" style="width: auto; flex-shrink: 0;" onclick="addAutofillSource()">Добавить</button>
                 </div>
               </div>
             </div>
@@ -1484,12 +1484,18 @@
 
         <div class="card">
           <div class="card-title">Дополнительные настройки</div>
-          <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 24px;">
+          <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 20px;">
             <label class="toggle-switch">
               <input type="checkbox" id="autofillTranslate">
               <span class="toggle-slider"></span>
             </label>
-            <label style="color: #2c3e50; font-weight: 600; cursor: pointer;">Автоматический перевод сообщений</label>
+            <label style="color: #2c3e50; font-weight: 600; cursor: pointer;">Автоматический перевод на русский (Google Translate)</label>
+          </div>
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <label style="font-weight: 600; font-size: 14px; color: #2c3e50; white-space: nowrap;">Проверять каждые</label>
+            <input type="number" id="autofillInterval" value="5" min="1" max="1440"
+                   style="width: 70px; padding: 8px 10px; border: 1px solid #e8edf2; border-radius: 8px; font-size: 14px; background: #f8fafb;">
+            <span style="font-size: 14px; color: #64748b;">минут</span>
           </div>
         </div>
 
@@ -1518,8 +1524,23 @@
           </div>
         </div>
 
-        <div style="display: flex; gap: 12px; margin-bottom: 32px;">
-          <button type="button" class="bp" onclick="saveAutofillConfig()">💾 Сохранить настройки</button>
+        <div class="card" id="autofillStatusCard" style="display: none;">
+          <div class="card-title">Статус автонаполнения</div>
+          <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+            <span id="autofillStatusBadge" style="display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 13px; font-weight: 700; background: #d1fae5; color: #065f46;">● Запущено</span>
+            <span style="font-size: 13px; color: #64748b;">Переслано постов: <strong id="autofillForwarded">0</strong></span>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 13px; color: #64748b;">
+            <div>Текущий источник: <span id="autofillCurrentSource" style="color: #1b2236; font-weight: 600;">—</span></div>
+            <div>Последняя активность: <span id="autofillLastActivity" style="color: #1b2236; font-weight: 600;">—</span></div>
+          </div>
+          <div id="autofillErrorMsg" style="display: none; margin-top: 12px; padding: 8px 12px; background: #fee2e2; border-radius: 8px; font-size: 13px; color: #7f1d1d;"></div>
+        </div>
+
+        <div style="display: flex; gap: 12px; margin-bottom: 32px; flex-wrap: wrap;">
+          <button type="button" class="bp btn-small" style="width: auto;" onclick="saveAutofillConfig()">💾 Сохранить</button>
+          <button type="button" class="bs" id="startAutofillBtn" style="width: auto;" onclick="startAutofill()">▶ Запустить</button>
+          <button type="button" class="bd" id="stopAutofillBtn" style="display: none; width: auto;" onclick="stopAutofill()">⏹ Остановить</button>
         </div>
       </div>
     </div>
@@ -1733,6 +1754,7 @@ function switchPage(page) {
 
   // Load daily invite stats when navigating to invite page
   if (page === 'invite') loadInviteDailyStats();
+  if (page === 'autofill') loadAutofillConfig();
 }
 
 async function loadInviteDailyStats() {
@@ -2465,8 +2487,116 @@ function removeAutofillRule(index) {
   showToast('Правило удалено', 'info');
 }
 
-function saveAutofillConfig() {
-  showToast('Настройки автонаполнения сохранены', 'success');
+// ─── AUTOFILL ───
+let autofillPollInterval = null;
+
+async function loadAutofillConfig() {
+  try {
+    const cfg = await api('/api/autofill/config');
+    autofillSources = cfg.sources || [];
+    renderAutofillSources();
+    const tgt = document.getElementById('autofillTarget');
+    if (tgt) tgt.value = cfg.target || '';
+    const tr = document.getElementById('autofillTranslate');
+    if (tr) tr.checked = !!cfg.translate;
+    const intv = document.getElementById('autofillInterval');
+    if (intv) intv.value = cfg.check_interval || 5;
+    autofillRules = cfg.rules || [];
+    renderAutofillRules();
+    const st = await api('/api/autofill/status');
+    updateAutofillStatusUI(st);
+    if (st.running) startAutofillPolling();
+  } catch(e) {}
+}
+
+async function saveAutofillConfig() {
+  const target = document.getElementById('autofillTarget')?.value.trim() || '';
+  const translate = document.getElementById('autofillTranslate')?.checked || false;
+  const check_interval = parseInt(document.getElementById('autofillInterval')?.value) || 5;
+  try {
+    await api('/api/autofill/config', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ sources: autofillSources, target, translate, rules: autofillRules, check_interval })
+    });
+    showToast('Настройки сохранены', 'success');
+  } catch(e) { showToast('Ошибка: ' + e.message, 'error'); }
+}
+
+async function startAutofill() {
+  await saveAutofillConfig();
+  const btn = document.getElementById('startAutofillBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Запуск...'; }
+  try {
+    await api('/api/autofill/start', { method: 'POST' });
+    document.getElementById('stopAutofillBtn').style.display = 'inline-block';
+    if (btn) btn.style.display = 'none';
+    document.getElementById('autofillStatusCard').style.display = 'block';
+    startAutofillPolling();
+    showToast('Автонаполнение запущено', 'success');
+  } catch(e) {
+    showToast('Ошибка: ' + e.message, 'error');
+    if (btn) { btn.disabled = false; btn.textContent = '▶ Запустить'; }
+  }
+}
+
+async function stopAutofill() {
+  try { await api('/api/autofill/stop', { method: 'POST' }); } catch(e) {}
+  clearInterval(autofillPollInterval);
+  document.getElementById('stopAutofillBtn').style.display = 'none';
+  const btn = document.getElementById('startAutofillBtn');
+  if (btn) { btn.style.display = 'inline-block'; btn.disabled = false; btn.textContent = '▶ Запустить'; }
+  const badge = document.getElementById('autofillStatusBadge');
+  if (badge) { badge.textContent = '⏹ Остановлено'; badge.style.background = '#f1f5f9'; badge.style.color = '#475569'; }
+  showToast('Автонаполнение остановлено', 'info');
+}
+
+function updateAutofillStatusUI(s) {
+  const card = document.getElementById('autofillStatusCard');
+  const badge = document.getElementById('autofillStatusBadge');
+  const fwd = document.getElementById('autofillForwarded');
+  const src = document.getElementById('autofillCurrentSource');
+  const act = document.getElementById('autofillLastActivity');
+  const errDiv = document.getElementById('autofillErrorMsg');
+  const startBtn = document.getElementById('startAutofillBtn');
+  const stopBtn = document.getElementById('stopAutofillBtn');
+  if (!badge) return;
+  if (fwd) fwd.textContent = s.forwarded || 0;
+  if (src) src.textContent = s.current_source ? s.current_source : '—';
+  if (act) act.textContent = s.last_activity || '—';
+  if (s.status === 'running' || s.status === 'starting') {
+    if (card) card.style.display = 'block';
+    badge.textContent = '● Работает'; badge.style.background = '#d1fae5'; badge.style.color = '#065f46';
+    if (stopBtn) stopBtn.style.display = 'inline-block';
+    if (startBtn) startBtn.style.display = 'none';
+    if (errDiv) errDiv.style.display = 'none';
+  } else if (s.status === 'error') {
+    if (card) card.style.display = 'block';
+    badge.textContent = '✗ Ошибка'; badge.style.background = '#fee2e2'; badge.style.color = '#7f1d1d';
+    if (stopBtn) stopBtn.style.display = 'none';
+    if (startBtn) { startBtn.style.display = 'inline-block'; startBtn.disabled = false; startBtn.textContent = '▶ Запустить'; }
+    if (errDiv) { errDiv.textContent = s.error || ''; errDiv.style.display = 'block'; }
+  } else if (s.status === 'stopped') {
+    if (card) card.style.display = 'block';
+    badge.textContent = '⏹ Остановлено'; badge.style.background = '#f1f5f9'; badge.style.color = '#475569';
+    if (stopBtn) stopBtn.style.display = 'none';
+    if (startBtn) { startBtn.style.display = 'inline-block'; startBtn.disabled = false; startBtn.textContent = '▶ Запустить'; }
+    if (errDiv) errDiv.style.display = 'none';
+  }
+}
+
+function startAutofillPolling() {
+  if (autofillPollInterval) clearInterval(autofillPollInterval);
+  autofillPollInterval = setInterval(async () => {
+    try {
+      const s = await api('/api/autofill/status');
+      updateAutofillStatusUI(s);
+      if (!s.running && s.status !== 'starting') {
+        clearInterval(autofillPollInterval);
+        if (s.status === 'error') showToast('Ошибка: ' + s.error, 'error');
+      }
+    } catch(e) {}
+  }, 3000);
 }
 
 // ============ CREDENTIALS FORM ============

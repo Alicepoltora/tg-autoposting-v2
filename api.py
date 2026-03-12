@@ -1032,6 +1032,266 @@ def invite_status(user=Depends(current_user)):
         "queue_target": saved.get("target", "") if saved else "",
     }
 
+# ─── AUTOFILL HELPERS ───
+def uautofill_config(uid): return udir(uid) / "autofill_config.json"
+def uautofill_state(uid):  return udir(uid) / "autofill_state.json"
+
+def read_autofill_config(uid) -> dict:
+    f = uautofill_config(uid)
+    if f.exists():
+        try: return json.loads(f.read_text())
+        except: pass
+    return {"sources": [], "target": "", "translate": False, "rules": [], "check_interval": 5}
+
+def write_autofill_config(uid, data: dict):
+    udir(uid).mkdir(parents=True, exist_ok=True)
+    uautofill_config(uid).write_text(json.dumps(data, ensure_ascii=False, indent=2))
+
+def read_autofill_last_ids(uid) -> dict:
+    f = uautofill_state(uid)
+    if f.exists():
+        try: return json.loads(f.read_text()).get("last_ids", {})
+        except: pass
+    return {}
+
+def write_autofill_last_ids(uid, last_ids: dict):
+    udir(uid).mkdir(parents=True, exist_ok=True)
+    uautofill_state(uid).write_text(json.dumps({"last_ids": last_ids}, ensure_ascii=False))
+
+def translate_text(text: str, target_lang: str = "ru") -> str:
+    if not text or not text.strip(): return text
+    try:
+        import urllib.parse
+        url = ("https://translate.googleapis.com/translate_a/single"
+               f"?client=gtx&sl=auto&tl={target_lang}&dt=t&q={urllib.parse.quote(text)}")
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            result = json.loads(resp.read().decode())
+            return ''.join([item[0] for item in result[0] if item[0]])
+    except Exception as e:
+        logger.warning(f"Translation failed: {e}")
+        return text
+
+def apply_autofill_rules(text: str, rules: list) -> str:
+    import re
+    for rule in rules:
+        try:
+            pattern = rule.get("regex", "")
+            replacement = rule.get("replacement", "")
+            if pattern:
+                text = re.sub(pattern, replacement, text)
+        except re.error as e:
+            logger.warning(f"Invalid regex '{pattern}': {e}")
+    return text
+
+# ─── AUTOFILL STATE ───
+autofill_states = {}
+
+def get_autofill_state(uid):
+    if uid not in autofill_states:
+        autofill_states[uid] = {
+            "running": False, "status": "idle",
+            "forwarded": 0, "error": None,
+            "last_activity": None, "current_source": "",
+            "task": None,
+        }
+    return autofill_states[uid]
+
+async def _do_autofill(uid: int):
+    from telethon.errors import FloodWaitError
+    af = get_autofill_state(uid)
+    state = get_auth_state(uid)
+    env = read_uenv(uid)
+
+    client = state.get("client")
+    if not client:
+        api_id = env.get("TG_API_ID", "")
+        api_hash = env.get("TG_API_HASH", "")
+        if not api_id or not api_hash:
+            af.update({"status": "error", "error": "Нет API credentials", "running": False})
+            return
+        try:
+            from telethon import TelegramClient
+            client = TelegramClient(usession(uid), int(api_id), api_hash)
+            await asyncio.wait_for(client.connect(), timeout=30)
+            if not await asyncio.wait_for(client.is_user_authorized(), timeout=10):
+                af.update({"status": "error", "error": "Не авторизован в Telegram", "running": False})
+                await client.disconnect()
+                return
+            state["client"] = client
+        except Exception as e:
+            af.update({"status": "error", "error": str(e), "running": False})
+            return
+
+    config = read_autofill_config(uid)
+    sources = config.get("sources", [])
+    target = config.get("target", "")
+    do_translate = config.get("translate", False)
+    rules = config.get("rules", [])
+    check_interval = max(1, int(config.get("check_interval", 5))) * 60  # minutes → seconds
+
+    # Init last_ids for new sources (remember where we are so we don't re-forward old posts)
+    last_ids = read_autofill_last_ids(uid)
+    for source in sources:
+        if source not in last_ids:
+            try:
+                entity = await asyncio.wait_for(client.get_entity(source), timeout=15)
+                msgs = await client.get_messages(entity, limit=1)
+                last_ids[source] = msgs[0].id if msgs else 0
+                logger.info(f"Autofill init {source}: last_id={last_ids[source]}")
+            except Exception as e:
+                logger.warning(f"Could not init source {source}: {e}")
+                last_ids[source] = 0
+    write_autofill_last_ids(uid, last_ids)
+
+    af.update({"status": "running", "running": True, "error": None})
+    logger.info(f"Autofill started uid={uid} sources={sources} target={target} interval={check_interval}s")
+
+    try:
+        while af["running"]:
+            # Reload config each cycle so live edits take effect
+            config = read_autofill_config(uid)
+            sources = config.get("sources", [])
+            target = config.get("target", "")
+            do_translate = config.get("translate", False)
+            rules = config.get("rules", [])
+            check_interval = max(1, int(config.get("check_interval", 5))) * 60
+
+            if not sources or not target:
+                af.update({"status": "error", "error": "Конфиг пуст — остановлено", "running": False})
+                return
+
+            for source in sources:
+                if not af["running"]: break
+                af["current_source"] = source
+                try:
+                    src_entity = await asyncio.wait_for(client.get_entity(source), timeout=15)
+                    tgt_entity = await asyncio.wait_for(client.get_entity(target), timeout=15)
+                    last_id = last_ids.get(source, 0)
+
+                    new_msgs = []
+                    async for msg in client.iter_messages(src_entity, min_id=last_id, limit=100):
+                        if not msg.grouped_id:  # skip album parts for simplicity
+                            new_msgs.append(msg)
+                    new_msgs.reverse()  # oldest first
+
+                    for msg in new_msgs:
+                        if not af["running"]: break
+                        try:
+                            text = msg.text or ""
+                            modified = bool(rules or do_translate)
+
+                            if rules and text:
+                                text = apply_autofill_rules(text, rules)
+                            if do_translate and text:
+                                text = await asyncio.get_event_loop().run_in_executor(
+                                    None, translate_text, text)
+
+                            if msg.media and not modified:
+                                await asyncio.wait_for(
+                                    client.forward_messages(tgt_entity, msg, src_entity), timeout=30)
+                            elif msg.media:
+                                await asyncio.wait_for(
+                                    client.send_file(tgt_entity, msg.media, caption=text or None), timeout=30)
+                            elif text:
+                                await asyncio.wait_for(
+                                    client.send_message(tgt_entity, text), timeout=30)
+
+                            last_ids[source] = msg.id
+                            af["forwarded"] += 1
+                            af["last_activity"] = datetime.now().strftime("%d.%m %H:%M:%S")
+                            write_autofill_last_ids(uid, last_ids)
+                            await asyncio.sleep(2)
+
+                        except FloodWaitError as e:
+                            logger.warning(f"Autofill FloodWait {e.seconds}s uid={uid}")
+                            await asyncio.sleep(e.seconds + 5)
+                        except Exception as e:
+                            logger.warning(f"Autofill msg error uid={uid}: {e}")
+                            last_ids[source] = msg.id
+                            write_autofill_last_ids(uid, last_ids)
+
+                    if new_msgs:
+                        logger.info(f"Autofill uid={uid}: forwarded {len(new_msgs)} from {source}")
+
+                except Exception as e:
+                    logger.warning(f"Autofill source {source} error uid={uid}: {e}")
+
+            af["current_source"] = ""
+            af["status"] = "running"
+
+            # Wait for next check interval, second by second so we can stop cleanly
+            for _ in range(check_interval):
+                if not af["running"]: break
+                await asyncio.sleep(1)
+
+    except asyncio.CancelledError:
+        af.update({"status": "stopped", "running": False, "current_source": ""})
+    except Exception as e:
+        logger.error(f"Autofill fatal error uid={uid}: {e}")
+        af.update({"status": "error", "error": str(e), "running": False, "current_source": ""})
+
+    logger.info(f"Autofill stopped uid={uid} forwarded={af['forwarded']}")
+
+# ─── AUTOFILL MODEL ───
+class AutofillConfigReq(BaseModel):
+    sources: list = []
+    target: str = ""
+    translate: bool = False
+    rules: list = []
+    check_interval: int = 5  # minutes
+
+# ─── AUTOFILL ENDPOINTS ───
+@app.get("/api/autofill/config")
+def get_autofill_config_endpoint(user=Depends(current_user)):
+    return read_autofill_config(user["id"])
+
+@app.post("/api/autofill/config")
+def save_autofill_config_endpoint(data: AutofillConfigReq, user=Depends(current_user)):
+    write_autofill_config(user["id"], data.model_dump())
+    return {"message": "Конфиг сохранён"}
+
+@app.post("/api/autofill/start")
+async def autofill_start(user=Depends(current_user)):
+    uid = user["id"]
+    af = get_autofill_state(uid)
+    if af.get("running"):
+        raise HTTPException(400, "Автонаполнение уже запущено")
+    config = read_autofill_config(uid)
+    if not config.get("sources"):
+        raise HTTPException(400, "Добавьте хотя бы один источник")
+    if not config.get("target"):
+        raise HTTPException(400, "Укажите целевой канал")
+    if af.get("task") and not af["task"].done():
+        af["task"].cancel()
+    af.update({"status": "starting", "running": True, "forwarded": 0, "error": None})
+    task = asyncio.create_task(_do_autofill(uid))
+    af["task"] = task
+    return {"message": "Автонаполнение запущено"}
+
+@app.post("/api/autofill/stop")
+def autofill_stop(user=Depends(current_user)):
+    uid = user["id"]
+    af = get_autofill_state(uid)
+    af["running"] = False
+    if af.get("task") and not af["task"].done():
+        af["task"].cancel()
+    af["status"] = "stopped"
+    return {"message": "Остановлено"}
+
+@app.get("/api/autofill/status")
+def autofill_status_endpoint(user=Depends(current_user)):
+    uid = user["id"]
+    af = get_autofill_state(uid)
+    return {
+        "status": af["status"],
+        "running": af["running"],
+        "forwarded": af["forwarded"],
+        "error": af["error"],
+        "last_activity": af["last_activity"],
+        "current_source": af.get("current_source", ""),
+    }
+
 # ─── HTML ───
 @app.get("/")
 async def serve_index():
