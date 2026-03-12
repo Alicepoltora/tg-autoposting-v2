@@ -1366,6 +1366,9 @@
             <textarea id="inviteManualIds" placeholder="123456789&#10;987654321&#10;555555555"></textarea>
           </div>
 
+          <!-- Daily limit info shown before starting -->
+          <div id="inviteDailyInfo" style="display: none; margin-bottom: 14px; padding: 10px 14px; background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; font-size: 13px; color: #14532d;"></div>
+
           <button type="button" class="bs" id="startInviteBtn" onclick="startInviter()">Начать инвайтинг</button>
           <button type="button" class="bd" id="stopInviteBtn" style="display: none; margin-left: 8px;" onclick="stopInviter()">Остановить</button>
         </div>
@@ -1373,25 +1376,65 @@
         <div class="card" id="inviteProgressCard" style="display: none;">
           <div class="card-title">Прогресс инвайтинга</div>
 
-          <div class="progress-label">
-            <span>Приглашено / Ошибок</span>
-            <span id="inviteProgressText">0 / 0</span>
-          </div>
-          <div class="progress-bar">
-            <div class="progress-bar-fill" id="inviteProgressBar"></div>
+          <!-- Current target -->
+          <div style="font-size: 13px; color: #95a3b3; margin-bottom: 12px;">
+            Канал: <span id="inviteTargetLabel" style="font-weight: 600; color: #1b2236;">—</span>
           </div>
 
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 20px;">
-            <div style="padding: 12px; background-color: #d1fae5; border-radius: 8px; text-align: center;">
-              <div style="font-size: 12px; color: #065f46; font-weight: 600; margin-bottom: 4px;">Успешно</div>
-              <div style="font-size: 24px; font-weight: 700; color: #065f46;" id="inviteSuccess">0</div>
+          <!-- Main progress bar -->
+          <div class="progress-label">
+            <span id="inviteProgressPhase">Добавление участников...</span>
+            <span id="inviteProgressText">0 / 0</span>
+          </div>
+          <div class="progress-bar" style="margin-bottom: 20px;">
+            <div class="progress-bar-fill" id="inviteProgressBar" style="transition: width 0.5s ease;"></div>
+          </div>
+
+          <!-- 4-cell stats grid -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 10px; margin-bottom: 16px;">
+            <div style="padding: 12px 8px; background: linear-gradient(135deg,#d1fae5,#a7f3d0); border-radius: 10px; text-align: center; border: 1px solid #6ee7b7;">
+              <div style="font-size: 11px; color: #065f46; font-weight: 700; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;">✅ Добавлено</div>
+              <div style="font-size: 26px; font-weight: 800; color: #047857;" id="inviteSuccess">0</div>
+              <div style="font-size: 10px; color: #059669; margin-top: 2px;">в этом запуске</div>
             </div>
-            <div style="padding: 12px; background-color: #fee2e2; border-radius: 8px; text-align: center;">
-              <div style="font-size: 12px; color: #7f1d1d; font-weight: 600; margin-bottom: 4px;">Ошибок</div>
-              <div style="font-size: 24px; font-weight: 700; color: #7f1d1d;" id="inviteFailed">0</div>
+            <div style="padding: 12px 8px; background: linear-gradient(135deg,#fee2e2,#fecaca); border-radius: 10px; text-align: center; border: 1px solid #f87171;">
+              <div style="font-size: 11px; color: #7f1d1d; font-weight: 700; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;">❌ Ошибок</div>
+              <div style="font-size: 26px; font-weight: 800; color: #dc2626;" id="inviteFailed">0</div>
+              <div style="font-size: 10px; color: #ef4444; margin-top: 2px;">приватность / бан</div>
+            </div>
+            <div style="padding: 12px 8px; background: linear-gradient(135deg,#dbeafe,#bfdbfe); border-radius: 10px; text-align: center; border: 1px solid #93c5fd;">
+              <div style="font-size: 11px; color: #1e3a8a; font-weight: 700; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;">⏳ Осталось</div>
+              <div style="font-size: 26px; font-weight: 800; color: #2563eb;" id="inviteRemaining">0</div>
+              <div style="font-size: 10px; color: #3b82f6; margin-top: 2px;">в очереди</div>
+            </div>
+            <div style="padding: 12px 8px; border-radius: 10px; text-align: center; border: 2px solid #f59e0b;" id="inviteDailyCell" style="background: linear-gradient(135deg,#fef3c7,#fde68a);">
+              <div style="font-size: 11px; color: #78350f; font-weight: 700; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;">🛡️ Лимит сегодня</div>
+              <div style="font-size: 26px; font-weight: 800;" id="inviteDailyRemaining">—</div>
+              <div style="font-size: 10px; margin-top: 2px;" id="inviteDailyLabel">из 40 осталось</div>
             </div>
           </div>
-          <div style="margin-top: 12px; font-size: 13px; color: #95a3b3;">
+
+          <!-- Daily limit bar -->
+          <div style="margin-bottom: 16px;">
+            <div style="display: flex; justify-content: space-between; font-size: 12px; color: #95a3b3; margin-bottom: 4px;">
+              <span>Использовано сегодня</span>
+              <span><span id="inviteDailyDone">0</span> / <span id="inviteDailyLimit">40</span></span>
+            </div>
+            <div style="height: 8px; background: #e5e7eb; border-radius: 4px; overflow: hidden;">
+              <div id="inviteDailyBar" style="height: 100%; width: 0%; border-radius: 4px; background: linear-gradient(90deg, #10b981, #f59e0b, #ef4444); transition: width 0.5s ease;"></div>
+            </div>
+          </div>
+
+          <!-- Warning banner (hidden by default) -->
+          <div id="inviteLimitWarning" style="display: none; padding: 10px 14px; background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; font-size: 13px; color: #78350f; margin-bottom: 12px;">
+            ⚠️ <strong>Осторожно:</strong> осталось менее 10 инвайтов дневного лимита. Рекомендуем сделать паузу.
+          </div>
+          <div id="inviteLimitReached" style="display: none; padding: 10px 14px; background: #fee2e2; border: 1px solid #f87171; border-radius: 8px; font-size: 13px; color: #7f1d1d; margin-bottom: 12px;">
+            🚫 <strong>Дневной лимит исчерпан.</strong> Telegram ограничивает количество инвайтов в сутки для защиты от спама. Продолжите завтра.
+          </div>
+
+          <!-- Current user -->
+          <div style="font-size: 13px; color: #95a3b3; padding: 8px 12px; background: #f8fafb; border-radius: 8px;">
             Текущий: <span id="inviteCurrentUser" style="font-weight: 600; color: #1b2236;">—</span>
           </div>
         </div>
@@ -1680,6 +1723,36 @@ function switchPage(page) {
     autofill: 'Автонаполнение'
   };
   document.getElementById('pageTitle').textContent = titles[page] || page;
+
+  // Load daily invite stats when navigating to invite page
+  if (page === 'invite') loadInviteDailyStats();
+}
+
+async function loadInviteDailyStats() {
+  try {
+    const s = await api('/api/invite/status');
+    const dailyDone = s.daily_done || 0;
+    const dailyLimit = s.daily_limit || 40;
+    const dailyRemaining = s.daily_remaining !== undefined ? s.daily_remaining : (dailyLimit - dailyDone);
+    const ddEl = document.getElementById('inviteDailyDone');
+    const dlEl = document.getElementById('inviteDailyLimit');
+    const drEl = document.getElementById('inviteDailyRemaining');
+    const lbEl = document.getElementById('inviteDailyLabel');
+    const dailyBar = document.getElementById('inviteDailyBar');
+    if (ddEl) ddEl.textContent = dailyDone;
+    if (dlEl) dlEl.textContent = dailyLimit;
+    if (drEl) drEl.textContent = dailyRemaining;
+    if (lbEl) lbEl.textContent = 'из ' + dailyLimit + ' осталось';
+    if (dailyBar) dailyBar.style.width = Math.min(100, Math.round(dailyDone/dailyLimit*100)) + '%';
+
+    // Show daily stats mini block in config form if not running
+    const dailyInfo = document.getElementById('inviteDailyInfo');
+    if (dailyInfo) {
+      const color = dailyRemaining <= 0 ? '#dc2626' : dailyRemaining <= 10 ? '#d97706' : '#047857';
+      dailyInfo.innerHTML = '🛡️ Безопасный лимит сегодня: <strong style="color:' + color + '">' + dailyRemaining + ' / ' + dailyLimit + '</strong> инвайтов осталось';
+      dailyInfo.style.display = 'block';
+    }
+  } catch(e) {}
 }
 
 // ============ LOGOUT ============
@@ -2122,6 +2195,9 @@ async function startInviter() {
     if (btn) btn.style.display = 'none';
     document.getElementById('stopInviteBtn').style.display = 'inline-block';
     document.getElementById('inviteProgressCard').style.display = 'block';
+    // Set target label immediately
+    const tl = document.getElementById('inviteTargetLabel');
+    if (tl) tl.textContent = target;
     startInviterPolling();
   } catch (err) {
     showToast('Ошибка: ' + err.message, 'error');
@@ -2134,22 +2210,87 @@ function startInviterPolling() {
   inviterPollInterval = setInterval(async () => {
     try {
       const s = await api('/api/invite/status');
-      const total = s.total || 1;
+      const total = s.total || 0;
       const done = s.done || 0;
       const failed = s.failed || 0;
-      const pct = Math.round(((done + failed) / total) * 100);
+      const remaining = s.remaining || 0;
+      const dailyDone = s.daily_done || 0;
+      const dailyLimit = s.daily_limit || 40;
+      const dailyRemaining = s.daily_remaining !== undefined ? s.daily_remaining : (dailyLimit - dailyDone);
+
+      // Main progress bar
+      const pct = total > 0 ? Math.round(((done + failed) / total) * 100) : 0;
       document.getElementById('inviteProgressBar').style.width = pct + '%';
-      document.getElementById('inviteProgressText').textContent = `${done + failed} / ${total}`;
+      document.getElementById('inviteProgressText').textContent = (done + failed) + ' / ' + total;
+
+      // Phase label
+      const phaseEl = document.getElementById('inviteProgressPhase');
+      if (phaseEl) {
+        if (s.status === 'done') phaseEl.textContent = '✅ Инвайтинг завершён';
+        else if (s.status === 'stopped') phaseEl.textContent = '⏹ Остановлен';
+        else if (s.status === 'limit_reached') phaseEl.textContent = '🚫 Дневной лимит исчерпан';
+        else if (s.status === 'error') phaseEl.textContent = '❌ Ошибка';
+        else phaseEl.textContent = '🔄 Добавление участников...';
+      }
+
+      // Stats cells
       document.getElementById('inviteSuccess').textContent = done;
       document.getElementById('inviteFailed').textContent = failed;
-      if (s.current) document.getElementById('inviteCurrentUser').textContent = '@' + s.current;
+      document.getElementById('inviteRemaining').textContent = remaining;
 
-      if (s.status === 'done' || s.status === 'error') {
+      // Target label
+      const targetLbl = document.getElementById('inviteTargetLabel');
+      if (targetLbl && s.target) targetLbl.textContent = s.target;
+
+      // Daily limit cell
+      const dailyRemEl = document.getElementById('inviteDailyRemaining');
+      const dailyLblEl = document.getElementById('inviteDailyLabel');
+      const dailyCell = document.getElementById('inviteDailyCell');
+      if (dailyRemEl) dailyRemEl.textContent = dailyRemaining;
+      if (dailyLblEl) dailyLblEl.textContent = 'из ' + dailyLimit + ' осталось';
+      if (dailyCell) {
+        if (dailyRemaining <= 0) {
+          dailyCell.style.background = 'linear-gradient(135deg,#fee2e2,#fecaca)';
+          dailyCell.style.borderColor = '#f87171';
+          dailyRemEl.style.color = '#dc2626';
+        } else if (dailyRemaining <= 10) {
+          dailyCell.style.background = 'linear-gradient(135deg,#fef3c7,#fde68a)';
+          dailyCell.style.borderColor = '#f59e0b';
+          dailyRemEl.style.color = '#d97706';
+        } else {
+          dailyCell.style.background = 'linear-gradient(135deg,#d1fae5,#a7f3d0)';
+          dailyCell.style.borderColor = '#6ee7b7';
+          dailyRemEl.style.color = '#047857';
+        }
+      }
+
+      // Daily bar
+      const dailyBarPct = Math.min(100, Math.round((dailyDone / dailyLimit) * 100));
+      const dailyBar = document.getElementById('inviteDailyBar');
+      if (dailyBar) dailyBar.style.width = dailyBarPct + '%';
+      const ddEl = document.getElementById('inviteDailyDone');
+      const dlEl = document.getElementById('inviteDailyLimit');
+      if (ddEl) ddEl.textContent = dailyDone;
+      if (dlEl) dlEl.textContent = dailyLimit;
+
+      // Warning banners
+      const warnEl = document.getElementById('inviteLimitWarning');
+      const reachEl = document.getElementById('inviteLimitReached');
+      if (warnEl) warnEl.style.display = (dailyRemaining <= 10 && dailyRemaining > 0) ? 'block' : 'none';
+      if (reachEl) reachEl.style.display = (dailyRemaining <= 0 || s.status === 'limit_reached') ? 'block' : 'none';
+
+      // Current user
+      const curEl = document.getElementById('inviteCurrentUser');
+      if (curEl) curEl.textContent = s.current ? '@' + s.current : '—';
+
+      // Terminal states
+      if (s.status === 'done' || s.status === 'error' || s.status === 'limit_reached' || s.status === 'stopped') {
         clearInterval(inviterPollInterval);
         document.getElementById('stopInviteBtn').style.display = 'none';
         const startBtn = document.getElementById('startInviteBtn');
         if (startBtn) { startBtn.style.display = 'inline-block'; startBtn.disabled = false; startBtn.textContent = 'Начать инвайтинг'; }
         if (s.status === 'error') showToast('Ошибка: ' + s.error, 'error');
+        else if (s.status === 'limit_reached') showToast('Дневной лимит инвайтов исчерпан (' + dailyLimit + '/день)', 'warning');
         else showToast('Инвайтинг завершён! Добавлено: ' + done + ', ошибок: ' + failed, 'success');
       }
     } catch (err) { /* ignore */ }

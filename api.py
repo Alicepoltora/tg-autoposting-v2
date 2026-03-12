@@ -704,6 +704,34 @@ def parse_export(user=Depends(current_user)):
         headers={"Content-Disposition": "attachment; filename=members.csv"}
     )
 
+# ─── INVITE DAILY LIMIT ───
+DAILY_INVITE_LIMIT = 40  # Safe conservative Telegram limit per day
+
+def udaily(uid):
+    return udir(uid) / "invite_daily.json"
+
+def read_daily_stats(uid) -> dict:
+    f = udaily(uid)
+    today = datetime.now().strftime("%Y-%m-%d")
+    if f.exists():
+        try:
+            data = json.loads(f.read_text())
+            if data.get("date") == today:
+                return data
+        except:
+            pass
+    return {"date": today, "count": 0}
+
+def increment_daily(uid):
+    stats = read_daily_stats(uid)
+    stats["count"] += 1
+    udir(uid).mkdir(parents=True, exist_ok=True)
+    udaily(uid).write_text(json.dumps(stats))
+    return stats["count"]
+
+def get_daily_done(uid) -> int:
+    return read_daily_stats(uid).get("count", 0)
+
 # ─── INVITE STATE ───
 invite_states = {}
 
@@ -764,6 +792,18 @@ async def _do_invite(uid: int, target: str, usernames: list, delay: float):
             if not inv["running"]:
                 break
 
+            # Check daily limit before each invite
+            daily_done = get_daily_done(uid)
+            if daily_done >= DAILY_INVITE_LIMIT:
+                inv.update({
+                    "status": "limit_reached",
+                    "running": False,
+                    "current": "",
+                    "error": f"Достигнут дневной лимит {DAILY_INVITE_LIMIT} инвайтов. Попробуйте завтра."
+                })
+                logger.warning(f"Daily limit {DAILY_INVITE_LIMIT} reached for uid={uid}")
+                return
+
             inv["current"] = str(username)
 
             try:
@@ -780,7 +820,8 @@ async def _do_invite(uid: int, target: str, usernames: list, delay: float):
                     timeout=30
                 )
                 inv["done"] += 1
-                logger.info(f"Invited {username} -> {target}")
+                increment_daily(uid)
+                logger.info(f"Invited {username} -> {target} (daily: {get_daily_done(uid)}/{DAILY_INVITE_LIMIT})")
                 await asyncio.sleep(delay)
 
             except UserAlreadyParticipantError:
@@ -802,7 +843,7 @@ async def _do_invite(uid: int, target: str, usernames: list, delay: float):
                 inv["failed"] += 1
 
         inv.update({"status": "done", "running": False, "current": ""})
-        logger.info(f"Invite done uid={uid} done={inv['done']} failed={inv['failed']}")
+        logger.info(f"Invite done uid={uid} done={inv['done']} failed={inv['failed']} daily={get_daily_done(uid)}")
 
     except asyncio.CancelledError:
         inv.update({"status": "stopped", "running": False, "current": ""})
@@ -858,15 +899,23 @@ def invite_stop(user=Depends(current_user)):
 
 @app.get("/api/invite/status")
 def invite_status(user=Depends(current_user)):
-    inv = get_invite_state(user["id"])
+    uid = user["id"]
+    inv = get_invite_state(uid)
+    daily_done = get_daily_done(uid)
+    daily_remaining = max(0, DAILY_INVITE_LIMIT - daily_done)
+    remaining_in_run = max(0, inv["total"] - inv["done"] - inv["failed"])
     return {
         "status": inv["status"],
         "target": inv["target"],
         "done": inv["done"],
         "failed": inv["failed"],
         "total": inv["total"],
+        "remaining": remaining_in_run,
         "current": inv["current"],
         "error": inv["error"],
+        "daily_done": daily_done,
+        "daily_limit": DAILY_INVITE_LIMIT,
+        "daily_remaining": daily_remaining,
     }
 
 # ─── HTML ───
