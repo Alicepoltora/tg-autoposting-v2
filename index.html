@@ -1369,8 +1369,15 @@
           <!-- Daily limit info shown before starting -->
           <div id="inviteDailyInfo" style="display: none; margin-bottom: 14px; padding: 10px 14px; background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; font-size: 13px; color: #14532d;"></div>
 
+          <!-- Saved queue banner (shown when paused queue exists) -->
+          <div id="inviteQueueBanner" style="display: none; margin-bottom: 14px; padding: 10px 14px; background: #eff6ff; border: 1px solid #93c5fd; border-radius: 8px; font-size: 13px; color: #1e3a8a;">
+            ⏸ <strong>Сохранённая очередь:</strong> <span id="inviteQueueSize">0</span> участников в канал <strong><span id="inviteQueueTarget">—</span></strong>.
+            <a href="#" onclick="discardInviteQueue(event)" style="margin-left: 8px; color: #ef4444; text-decoration: underline;">Удалить</a>
+          </div>
+
           <button type="button" class="bs" id="startInviteBtn" onclick="startInviter()">Начать инвайтинг</button>
-          <button type="button" class="bd" id="stopInviteBtn" style="display: none; margin-left: 8px;" onclick="stopInviter()">Остановить</button>
+          <button type="button" class="bs" id="resumeInviteBtn" style="display: none; margin-left: 8px; background: #2563eb;" onclick="resumeInviter()">▶ Продолжить</button>
+          <button type="button" class="bd" id="stopInviteBtn" style="display: none; margin-left: 8px;" onclick="stopInviter()">⏸ Пауза</button>
         </div>
 
         <div class="card" id="inviteProgressCard" style="display: none;">
@@ -1729,6 +1736,7 @@ function switchPage(page) {
 }
 
 async function loadInviteDailyStats() {
+  updateInviteQueueBanner();
   try {
     const s = await api('/api/invite/status');
     const dailyDone = s.daily_done || 0;
@@ -2172,27 +2180,83 @@ function sendToInviter() {
 // ============ PAGE: ИНВАЙТИНГ ============
 let inviterPollInterval = null;
 
+// Show/hide invite queue banner based on saved queue state
+async function updateInviteQueueBanner() {
+  try {
+    const q = await api('/api/invite/queue');
+    const banner = document.getElementById('inviteQueueBanner');
+    const resumeBtn = document.getElementById('resumeInviteBtn');
+    if (q.has_queue && q.queue_size > 0) {
+      document.getElementById('inviteQueueSize').textContent = q.queue_size;
+      document.getElementById('inviteQueueTarget').textContent = q.queue_target || '—';
+      if (banner) banner.style.display = 'block';
+      if (resumeBtn) resumeBtn.style.display = 'inline-block';
+    } else {
+      if (banner) banner.style.display = 'none';
+      if (resumeBtn) resumeBtn.style.display = 'none';
+    }
+  } catch(e) {}
+}
+
+async function discardInviteQueue(e) {
+  e.preventDefault();
+  try {
+    await api('/api/invite/queue', {method: 'DELETE'});
+    const banner = document.getElementById('inviteQueueBanner');
+    if (banner) banner.style.display = 'none';
+    const resumeBtn = document.getElementById('resumeInviteBtn');
+    if (resumeBtn) resumeBtn.style.display = 'none';
+    showToast('Очередь удалена', 'info');
+  } catch(e) { showToast('Ошибка: ' + e.message, 'error'); }
+}
+
+async function resumeInviter() {
+  const resumeBtn = document.getElementById('resumeInviteBtn');
+  if (resumeBtn) { resumeBtn.disabled = true; resumeBtn.textContent = 'Запуск...'; }
+  try {
+    const res = await api('/api/invite/start', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({target: '', users: [], resume: true})
+    });
+    document.getElementById('inviteConfigForm').style.display = 'none';
+    document.getElementById('inviteQueueBanner').style.display = 'none';
+    if (resumeBtn) resumeBtn.style.display = 'none';
+    document.getElementById('startInviteBtn').style.display = 'none';
+    document.getElementById('stopInviteBtn').style.display = 'inline-block';
+    document.getElementById('inviteProgressCard').style.display = 'block';
+    startInviterPolling();
+  } catch (err) {
+    showToast('Ошибка: ' + err.message, 'error');
+    if (resumeBtn) { resumeBtn.disabled = false; resumeBtn.textContent = '▶ Продолжить'; }
+  }
+}
+
 async function startInviter() {
   const target = document.getElementById('inviteTarget').value.trim();
   const delay = parseInt(document.getElementById('inviteDelay')?.value) || 5;
   if (!target) { showToast('Введите целевой канал/группу', 'error'); return; }
 
   const users = window._inviterUsers || [];
-  if (!users.length) { showToast('Нет участников для инвайтинга. Сначала спарсите и выберите участников.', 'error'); return; }
+  const manualIds = document.getElementById('inviteManualIds')?.value?.trim() || '';
+  if (!users.length && !manualIds) {
+    showToast('Нет участников для инвайтинга. Сначала спарсите и выберите участников.', 'error');
+    return;
+  }
 
   const btn = document.getElementById('startInviteBtn');
   if (btn) { btn.disabled = true; btn.textContent = 'Запуск...'; }
-
-  const manualIds = document.getElementById('inviteManualIds')?.value?.trim() || '';
 
   try {
     await api('/api/invite/start', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({target, users, manual_ids: manualIds, delay})
+      body: JSON.stringify({target, users, manual_ids: manualIds, delay, resume: false})
     });
     document.getElementById('inviteConfigForm').style.display = 'none';
+    document.getElementById('inviteQueueBanner').style.display = 'none';
     if (btn) btn.style.display = 'none';
+    document.getElementById('resumeInviteBtn').style.display = 'none';
     document.getElementById('stopInviteBtn').style.display = 'inline-block';
     document.getElementById('inviteProgressCard').style.display = 'block';
     // Set target label immediately
@@ -2202,6 +2266,25 @@ async function startInviter() {
   } catch (err) {
     showToast('Ошибка: ' + err.message, 'error');
     if (btn) { btn.disabled = false; btn.textContent = 'Начать инвайтинг'; }
+  }
+}
+
+function _showInviterStopped(done, failed, status, error, dailyLimit) {
+  clearInterval(inviterPollInterval);
+  document.getElementById('stopInviteBtn').style.display = 'none';
+  document.getElementById('inviteConfigForm').style.display = 'block';
+  const startBtn = document.getElementById('startInviteBtn');
+  if (startBtn) { startBtn.style.display = 'inline-block'; startBtn.disabled = false; startBtn.textContent = 'Начать инвайтинг'; }
+  // Check if there's a queue to resume
+  updateInviteQueueBanner();
+  if (status === 'paused') {
+    showToast('Инвайтинг на паузе. Очередь сохранена.', 'info');
+  } else if (status === 'error') {
+    showToast('Ошибка: ' + error, 'error');
+  } else if (status === 'limit_reached') {
+    showToast('Дневной лимит инвайтов исчерпан (' + dailyLimit + '/день). Очередь сохранена.', 'warning');
+  } else {
+    showToast('Инвайтинг завершён! Добавлено: ' + done + ', ошибок: ' + failed, 'success');
   }
 }
 
@@ -2227,6 +2310,7 @@ function startInviterPolling() {
       const phaseEl = document.getElementById('inviteProgressPhase');
       if (phaseEl) {
         if (s.status === 'done') phaseEl.textContent = '✅ Инвайтинг завершён';
+        else if (s.status === 'paused') phaseEl.textContent = '⏸ Поставлен на паузу';
         else if (s.status === 'stopped') phaseEl.textContent = '⏹ Остановлен';
         else if (s.status === 'limit_reached') phaseEl.textContent = '🚫 Дневной лимит исчерпан';
         else if (s.status === 'error') phaseEl.textContent = '❌ Ошибка';
@@ -2283,15 +2367,9 @@ function startInviterPolling() {
       const curEl = document.getElementById('inviteCurrentUser');
       if (curEl) curEl.textContent = s.current ? '@' + s.current : '—';
 
-      // Terminal states
-      if (s.status === 'done' || s.status === 'error' || s.status === 'limit_reached' || s.status === 'stopped') {
-        clearInterval(inviterPollInterval);
-        document.getElementById('stopInviteBtn').style.display = 'none';
-        const startBtn = document.getElementById('startInviteBtn');
-        if (startBtn) { startBtn.style.display = 'inline-block'; startBtn.disabled = false; startBtn.textContent = 'Начать инвайтинг'; }
-        if (s.status === 'error') showToast('Ошибка: ' + s.error, 'error');
-        else if (s.status === 'limit_reached') showToast('Дневной лимит инвайтов исчерпан (' + dailyLimit + '/день)', 'warning');
-        else showToast('Инвайтинг завершён! Добавлено: ' + done + ', ошибок: ' + failed, 'success');
+      // Terminal states (including paused)
+      if (s.status === 'done' || s.status === 'error' || s.status === 'limit_reached' || s.status === 'stopped' || s.status === 'paused') {
+        _showInviterStopped(done, failed, s.status, s.error, dailyLimit);
       }
     } catch (err) { /* ignore */ }
   }, 2000);
@@ -2300,12 +2378,14 @@ function startInviterPolling() {
 async function stopInviter() {
   try { await api('/api/invite/stop', {method: 'POST'}); } catch(e) {}
   if (inviterPollInterval) clearInterval(inviterPollInterval);
+  document.getElementById('stopInviteBtn').style.display = 'none';
   document.getElementById('inviteConfigForm').style.display = 'block';
   const startBtn = document.getElementById('startInviteBtn');
   if (startBtn) { startBtn.style.display = 'inline-block'; startBtn.disabled = false; startBtn.textContent = 'Начать инвайтинг'; }
-  document.getElementById('stopInviteBtn').style.display = 'none';
   document.getElementById('inviteProgressCard').style.display = 'none';
-  showToast('Инвайтинг остановлен', 'info');
+  // Check saved queue after pause
+  setTimeout(updateInviteQueueBanner, 800);
+  showToast('Инвайтинг поставлен на паузу. Очередь сохранена.', 'info');
 }
 
 // ============ PAGE: АВТОНАПОЛНЕНИЕ ============

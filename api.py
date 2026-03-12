@@ -140,6 +140,7 @@ class InviteRequest(BaseModel):
     users: list = []             # List of usernames (strings) from parser
     manual_ids: str = ""         # Newline-separated user IDs entered manually
     delay: float = 5.0
+    resume: bool = False         # Resume from saved queue instead of users list
 
 # ─── AUTH ENDPOINTS ───
 @app.post("/api/auth/register")
@@ -732,6 +733,35 @@ def increment_daily(uid):
 def get_daily_done(uid) -> int:
     return read_daily_stats(uid).get("count", 0)
 
+# ─── INVITE QUEUE PERSISTENCE ───
+def uqueue(uid):
+    return udir(uid) / "invite_queue.json"
+
+def save_invite_queue(uid: int, target: str, remaining: list, failed: list, delay: float):
+    """Save remaining queue so invite can be resumed later."""
+    udir(uid).mkdir(parents=True, exist_ok=True)
+    uqueue(uid).write_text(json.dumps({
+        "target": target,
+        "queue": remaining,
+        "failed": failed,
+        "delay": delay,
+        "saved_at": datetime.now().isoformat(),
+    }, ensure_ascii=False))
+
+def load_invite_queue(uid: int) -> dict | None:
+    f = uqueue(uid)
+    if f.exists():
+        try:
+            return json.loads(f.read_text())
+        except:
+            pass
+    return None
+
+def clear_invite_queue(uid: int):
+    f = uqueue(uid)
+    if f.exists():
+        f.unlink()
+
 # ─── INVITE STATE ───
 invite_states = {}
 
@@ -781,29 +811,39 @@ async def _do_invite(uid: int, target: str, usernames: list, delay: float):
             inv.update({"status": "error", "error": str(e), "running": False})
             return
 
+    # Work on a mutable copy — we pop items as we go so we always know what's left
+    remaining = list(usernames)
+    failed_list = []
+
     try:
         inv.update({"status": "running", "running": True, "done": 0, "failed": 0, "error": None})
 
         # Resolve target entity
         target_entity = await asyncio.wait_for(client.get_entity(target), timeout=30)
-        inv["total"] = len(usernames)
+        inv["total"] = len(remaining)
 
-        for username in usernames:
+        while remaining:
             if not inv["running"]:
-                break
+                # Paused/stopped — save what's left so it can be resumed
+                save_invite_queue(uid, target, remaining, failed_list, delay)
+                inv.update({"status": "paused", "running": False, "current": ""})
+                logger.info(f"Invite paused uid={uid}: {len(remaining)} left in queue")
+                return
 
             # Check daily limit before each invite
             daily_done = get_daily_done(uid)
             if daily_done >= DAILY_INVITE_LIMIT:
+                save_invite_queue(uid, target, remaining, failed_list, delay)
                 inv.update({
                     "status": "limit_reached",
                     "running": False,
                     "current": "",
                     "error": f"Достигнут дневной лимит {DAILY_INVITE_LIMIT} инвайтов. Попробуйте завтра."
                 })
-                logger.warning(f"Daily limit {DAILY_INVITE_LIMIT} reached for uid={uid}")
+                logger.warning(f"Daily limit reached uid={uid}, {len(remaining)} users saved to queue")
                 return
 
+            username = remaining[0]  # peek
             inv["current"] = str(username)
 
             try:
@@ -819,35 +859,61 @@ async def _do_invite(uid: int, target: str, usernames: list, delay: float):
                     client(InviteToChannelRequest(target_entity, [user_entity])),
                     timeout=30
                 )
+                remaining.pop(0)  # success — remove from queue
                 inv["done"] += 1
                 increment_daily(uid)
+                inv["total"] = inv["done"] + inv["failed"] + len(remaining)
                 logger.info(f"Invited {username} -> {target} (daily: {get_daily_done(uid)}/{DAILY_INVITE_LIMIT})")
                 await asyncio.sleep(delay)
 
             except UserAlreadyParticipantError:
-                inv["done"] += 1  # already in group = success
+                remaining.pop(0)
+                inv["done"] += 1  # already in group = counts as success
+
             except PeerFloodError:
-                inv.update({"status": "error", "error": "PeerFloodError — аккаунт заблокирован Telegram за спам", "running": False})
+                save_invite_queue(uid, target, remaining, failed_list, delay)
+                inv.update({"status": "error", "running": False, "current": "",
+                            "error": "PeerFloodError — аккаунт ограничен Telegram. Очередь сохранена."})
                 return
+
             except FloodWaitError as e:
-                logger.warning(f"FloodWait {e.seconds}s")
+                logger.warning(f"FloodWait {e.seconds}s for uid={uid}")
+                inv["status"] = f"flood_wait ({e.seconds}s)"
                 await asyncio.sleep(e.seconds + 5)
+                # Don't remove from remaining — retry after wait
+
             except (UserPrivacyRestrictedError, UserNotMutualContactError,
                     InputUserDeactivatedError, UserBannedInChannelError):
-                inv["failed"] += 1
-            except ChatWriteForbiddenError:
-                inv.update({"status": "error", "error": "Нет прав добавлять участников в этот канал", "running": False})
-                return
-            except Exception as e:
-                logger.warning(f"Invite {username} error: {e}")
+                remaining.pop(0)
+                failed_list.append(str(username))
                 inv["failed"] += 1
 
+            except ChatWriteForbiddenError:
+                save_invite_queue(uid, target, remaining, failed_list, delay)
+                inv.update({"status": "error", "running": False, "current": "",
+                            "error": "Нет прав добавлять участников в этот канал. Очередь сохранена."})
+                return
+
+            except Exception as e:
+                logger.warning(f"Invite {username} error: {e}")
+                remaining.pop(0)
+                failed_list.append(str(username))
+                inv["failed"] += 1
+
+        # All done — clear saved queue
+        clear_invite_queue(uid)
         inv.update({"status": "done", "running": False, "current": ""})
         logger.info(f"Invite done uid={uid} done={inv['done']} failed={inv['failed']} daily={get_daily_done(uid)}")
 
     except asyncio.CancelledError:
-        inv.update({"status": "stopped", "running": False, "current": ""})
+        # Also save queue on task cancellation
+        if remaining:
+            save_invite_queue(uid, target, remaining, failed_list, delay)
+            logger.info(f"Invite cancelled uid={uid}: {len(remaining)} saved to queue")
+        inv.update({"status": "paused", "running": False, "current": ""})
     except Exception as e:
+        if remaining:
+            save_invite_queue(uid, target, remaining, failed_list, delay)
         logger.error(f"Invite error uid={uid}: {e}")
         inv.update({"status": "error", "error": str(e), "running": False, "current": ""})
 
@@ -859,33 +925,52 @@ async def invite_start(data: InviteRequest, user=Depends(current_user)):
     if inv.get("running"):
         raise HTTPException(400, "Invite already running")
 
-    # Combine usernames from parser + manual IDs
-    all_users = list(data.users)  # usernames from parser
-    if data.manual_ids:
-        for line in data.manual_ids.splitlines():
-            line = line.strip()
-            if line:
-                all_users.append(line)
+    if inv.get("task") and not inv["task"].done():
+        inv["task"].cancel()
+
+    if data.resume:
+        # Resume from saved queue
+        saved = load_invite_queue(uid)
+        if not saved:
+            raise HTTPException(400, "Нет сохранённой очереди для возобновления")
+        target = saved["target"]
+        all_users = saved.get("queue", [])
+        delay = saved.get("delay", data.delay)
+        if not all_users:
+            clear_invite_queue(uid)
+            raise HTTPException(400, "Сохранённая очередь пуста")
+        logger.info(f"Resuming invite uid={uid} target={target} queue={len(all_users)}")
+    else:
+        # Normal start: combine usernames from parser + manual IDs
+        target = data.target
+        all_users = list(data.users)
+        if data.manual_ids:
+            for line in data.manual_ids.splitlines():
+                line = line.strip()
+                if line:
+                    all_users.append(line)
+        delay = data.delay
 
     if not all_users:
         raise HTTPException(400, "Нет участников для инвайтинга")
 
-    if inv.get("task") and not inv["task"].done():
-        inv["task"].cancel()
+    if not target:
+        raise HTTPException(400, "Не указан целевой канал")
 
     inv.update({
         "status": "starting",
-        "target": data.target,
+        "target": target,
         "done": 0, "failed": 0,
         "total": len(all_users),
         "current": "",
         "error": None, "running": True,
     })
 
-    task = asyncio.create_task(_do_invite(uid, data.target, all_users, data.delay))
+    task = asyncio.create_task(_do_invite(uid, target, all_users, delay))
     inv["task"] = task
 
-    return {"message": f"Invite started for {len(all_users)} users"}
+    action = "возобновлён" if data.resume else "запущен"
+    return {"message": f"Инвайтинг {action} для {len(all_users)} участников"}
 
 @app.post("/api/invite/stop")
 def invite_stop(user=Depends(current_user)):
@@ -894,8 +979,33 @@ def invite_stop(user=Depends(current_user)):
     inv["running"] = False
     if inv.get("task") and not inv["task"].done():
         inv["task"].cancel()
-    inv["status"] = "stopped"
-    return {"message": "Stopped"}
+    # Status will be set to "paused" by _do_invite when it detects running=False
+    # Set it here too in case the task was already done
+    if inv["status"] not in ("done", "error"):
+        inv["status"] = "paused"
+    return {"message": "Paused"}
+
+@app.get("/api/invite/queue")
+def invite_queue_info(user=Depends(current_user)):
+    """Check if there's a saved invite queue to resume."""
+    uid = user["id"]
+    saved = load_invite_queue(uid)
+    if saved:
+        return {
+            "has_queue": True,
+            "queue_size": len(saved.get("queue", [])),
+            "queue_target": saved.get("target", ""),
+            "saved_at": saved.get("saved_at", ""),
+            "delay": saved.get("delay", 5.0),
+        }
+    return {"has_queue": False, "queue_size": 0, "queue_target": "", "saved_at": "", "delay": 5.0}
+
+@app.delete("/api/invite/queue")
+def invite_queue_clear(user=Depends(current_user)):
+    """Discard a saved invite queue (start fresh)."""
+    uid = user["id"]
+    clear_invite_queue(uid)
+    return {"message": "Queue cleared"}
 
 @app.get("/api/invite/status")
 def invite_status(user=Depends(current_user)):
@@ -904,6 +1014,7 @@ def invite_status(user=Depends(current_user)):
     daily_done = get_daily_done(uid)
     daily_remaining = max(0, DAILY_INVITE_LIMIT - daily_done)
     remaining_in_run = max(0, inv["total"] - inv["done"] - inv["failed"])
+    saved = load_invite_queue(uid)
     return {
         "status": inv["status"],
         "target": inv["target"],
@@ -916,6 +1027,9 @@ def invite_status(user=Depends(current_user)):
         "daily_done": daily_done,
         "daily_limit": DAILY_INVITE_LIMIT,
         "daily_remaining": daily_remaining,
+        "has_queue": bool(saved),
+        "queue_size": len(saved.get("queue", [])) if saved else 0,
+        "queue_target": saved.get("target", "") if saved else "",
     }
 
 # ─── HTML ───
