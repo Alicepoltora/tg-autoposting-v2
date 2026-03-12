@@ -136,9 +136,9 @@ class ParseRequest(BaseModel):
     limit: int = 1000
 
 class InviteRequest(BaseModel):
-    source_group: str
-    target_group: str
-    limit: int = 50
+    target: str                  # Target group/channel to invite into
+    users: list = []             # List of usernames (strings) from parser
+    manual_ids: str = ""         # Newline-separated user IDs entered manually
     delay: float = 5.0
 
 # ─── AUTH ENDPOINTS ───
@@ -712,17 +712,23 @@ def get_invite_state(uid):
         invite_states[uid] = {
             "running": False,
             "status": "idle",
-            "source_group": "",
-            "target_group": "",
-            "invited": 0,
+            "target": "",
+            "done": 0,
             "failed": 0,
             "total": 0,
+            "current": "",
             "error": None,
             "task": None,
         }
     return invite_states[uid]
 
-async def _do_invite(uid: int, source_group: str, target_group: str, limit: int, delay: float):
+async def _do_invite(uid: int, target: str, usernames: list, delay: float):
+    from telethon.tl.functions.channels import InviteToChannelRequest
+    from telethon.errors import (FloodWaitError, UserPrivacyRestrictedError,
+                                  UserNotMutualContactError, PeerFloodError,
+                                  UserAlreadyParticipantError, InputUserDeactivatedError,
+                                  UserBannedInChannelError, ChatWriteForbiddenError)
+
     inv = get_invite_state(uid)
     state = get_auth_state(uid)
     env = read_uenv(uid)
@@ -739,7 +745,7 @@ async def _do_invite(uid: int, source_group: str, target_group: str, limit: int,
             client = TelegramClient(usession(uid), int(api_id), api_hash)
             await asyncio.wait_for(client.connect(), timeout=30)
             if not await asyncio.wait_for(client.is_user_authorized(), timeout=10):
-                inv.update({"status": "error", "error": "Not authorized", "running": False})
+                inv.update({"status": "error", "error": "Not authorized in Telegram", "running": False})
                 await client.disconnect()
                 return
             state["client"] = client
@@ -748,49 +754,61 @@ async def _do_invite(uid: int, source_group: str, target_group: str, limit: int,
             return
 
     try:
-        from telethon.tl.functions.channels import InviteToChannelRequest
-        from telethon.errors import FloodWaitError, UserPrivacyRestrictedError, UserNotMutualContactError, PeerFloodError
+        inv.update({"status": "running", "running": True, "done": 0, "failed": 0, "error": None})
 
-        inv.update({"status": "running", "running": True, "invited": 0, "failed": 0, "error": None})
+        # Resolve target entity
+        target_entity = await asyncio.wait_for(client.get_entity(target), timeout=30)
+        inv["total"] = len(usernames)
 
-        source_entity = await asyncio.wait_for(client.get_entity(source_group), timeout=30)
-        target_entity = await asyncio.wait_for(client.get_entity(target_group), timeout=30)
-
-        members = []
-        async for p in client.iter_participants(source_entity, limit=limit):
-            if not p.bot and not p.deleted:
-                members.append(p)
-
-        inv["total"] = len(members)
-
-        for member in members:
+        for username in usernames:
             if not inv["running"]:
                 break
+
+            inv["current"] = str(username)
+
             try:
+                # Resolve user entity (username or numeric ID)
+                if str(username).lstrip('-').isdigit():
+                    user_entity = await asyncio.wait_for(
+                        client.get_entity(int(username)), timeout=15)
+                else:
+                    user_entity = await asyncio.wait_for(
+                        client.get_entity(username), timeout=15)
+
                 await asyncio.wait_for(
-                    client(InviteToChannelRequest(target_entity, [member])),
+                    client(InviteToChannelRequest(target_entity, [user_entity])),
                     timeout=30
                 )
-                inv["invited"] += 1
+                inv["done"] += 1
+                logger.info(f"Invited {username} -> {target}")
                 await asyncio.sleep(delay)
+
+            except UserAlreadyParticipantError:
+                inv["done"] += 1  # already in group = success
             except PeerFloodError:
-                inv.update({"status": "error", "error": "PeerFloodError - account restricted", "running": False})
+                inv.update({"status": "error", "error": "PeerFloodError — аккаунт заблокирован Telegram за спам", "running": False})
                 return
             except FloodWaitError as e:
-                await asyncio.sleep(e.seconds)
-            except (UserPrivacyRestrictedError, UserNotMutualContactError):
+                logger.warning(f"FloodWait {e.seconds}s")
+                await asyncio.sleep(e.seconds + 5)
+            except (UserPrivacyRestrictedError, UserNotMutualContactError,
+                    InputUserDeactivatedError, UserBannedInChannelError):
                 inv["failed"] += 1
+            except ChatWriteForbiddenError:
+                inv.update({"status": "error", "error": "Нет прав добавлять участников в этот канал", "running": False})
+                return
             except Exception as e:
-                logger.warning(f"Invite member error {member.id}: {e}")
+                logger.warning(f"Invite {username} error: {e}")
                 inv["failed"] += 1
 
-        inv.update({"status": "done", "running": False})
+        inv.update({"status": "done", "running": False, "current": ""})
+        logger.info(f"Invite done uid={uid} done={inv['done']} failed={inv['failed']}")
 
     except asyncio.CancelledError:
-        inv.update({"status": "stopped", "running": False})
+        inv.update({"status": "stopped", "running": False, "current": ""})
     except Exception as e:
         logger.error(f"Invite error uid={uid}: {e}")
-        inv.update({"status": "error", "error": str(e), "running": False})
+        inv.update({"status": "error", "error": str(e), "running": False, "current": ""})
 
 @app.post("/api/invite/start")
 async def invite_start(data: InviteRequest, user=Depends(current_user)):
@@ -800,21 +818,33 @@ async def invite_start(data: InviteRequest, user=Depends(current_user)):
     if inv.get("running"):
         raise HTTPException(400, "Invite already running")
 
+    # Combine usernames from parser + manual IDs
+    all_users = list(data.users)  # usernames from parser
+    if data.manual_ids:
+        for line in data.manual_ids.splitlines():
+            line = line.strip()
+            if line:
+                all_users.append(line)
+
+    if not all_users:
+        raise HTTPException(400, "Нет участников для инвайтинга")
+
     if inv.get("task") and not inv["task"].done():
         inv["task"].cancel()
 
     inv.update({
         "status": "starting",
-        "source_group": data.source_group,
-        "target_group": data.target_group,
-        "invited": 0, "failed": 0, "total": 0,
+        "target": data.target,
+        "done": 0, "failed": 0,
+        "total": len(all_users),
+        "current": "",
         "error": None, "running": True,
     })
 
-    task = asyncio.create_task(_do_invite(uid, data.source_group, data.target_group, data.limit, data.delay))
+    task = asyncio.create_task(_do_invite(uid, data.target, all_users, data.delay))
     inv["task"] = task
 
-    return {"message": "Invite started"}
+    return {"message": f"Invite started for {len(all_users)} users"}
 
 @app.post("/api/invite/stop")
 def invite_stop(user=Depends(current_user)):
@@ -831,11 +861,11 @@ def invite_status(user=Depends(current_user)):
     inv = get_invite_state(user["id"])
     return {
         "status": inv["status"],
-        "source_group": inv["source_group"],
-        "target_group": inv["target_group"],
-        "invited": inv["invited"],
+        "target": inv["target"],
+        "done": inv["done"],
         "failed": inv["failed"],
         "total": inv["total"],
+        "current": inv["current"],
         "error": inv["error"],
     }
 

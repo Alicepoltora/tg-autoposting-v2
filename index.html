@@ -1496,7 +1496,7 @@ async function api(url, opts = {}) {
   }
 
   const d = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(d.detail || d.message || 'Error');
+  if (!r.ok) { const det = d.detail; const msg = Array.isArray(det) ? det.map(e => e.msg || e.type || JSON.stringify(e)).join('; ') : (det || d.message || 'Error'); throw new Error(msg); }
   return d;
 }
 
@@ -2110,11 +2110,13 @@ async function startInviter() {
   const btn = document.getElementById('startInviteBtn');
   if (btn) { btn.disabled = true; btn.textContent = 'Запуск...'; }
 
+  const manualIds = document.getElementById('inviteManualIds')?.value?.trim() || '';
+
   try {
     await api('/api/invite/start', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({target, users, delay})
+      body: JSON.stringify({target, users, manual_ids: manualIds, delay})
     });
     document.getElementById('inviteConfigForm').style.display = 'none';
     if (btn) btn.style.display = 'none';
