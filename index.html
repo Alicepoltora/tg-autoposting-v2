@@ -1492,7 +1492,7 @@
             <label style="color: #2c3e50; font-weight: 600; cursor: pointer;">Автоматический перевод на русский (Google Translate)</label>
           </div>
           <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 14px;">
-            <label style="font-weight: 600; font-size: 14px; color: #2c3e50; white-space: nowrap;">Проверять каждые</label>
+            <label style="font-weight: 600; font-size: 14px; color: #2c3e50; white-space: nowrap;" title="Резервная проверка: посты следят мгновенно через events, этот интервал лишь для резервного скана">Резервный скан каждые</label>
             <input type="number" id="autofillInterval" value="5" min="1" max="1440"
                    style="width: 70px; padding: 8px 10px; border: 1px solid #e8edf2; border-radius: 8px; font-size: 14px; background: #f8fafb;">
             <span style="font-size: 14px; color: #64748b;">минут</span>
@@ -1578,7 +1578,7 @@
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 13px; color: #64748b;">
             <div>Текущий источник: <span id="autofillCurrentSource" style="color: #1b2236; font-weight: 600;">—</span></div>
             <div>Последняя активность: <span id="autofillLastActivity" style="color: #1b2236; font-weight: 600;">—</span></div>
-            <div>Следующая проверка: <span id="autofillNextCheck" style="color: #1b2236; font-weight: 600;">—</span></div>
+            <div>Резервная проверка: <span id="autofillNextCheck" style="color: #1b2236; font-weight: 600;">—</span></div>
           </div>
           <div id="autofillErrorMsg" style="display: none; margin-top: 12px; padding: 8px 12px; background: #fee2e2; border-radius: 8px; font-size: 13px; color: #7f1d1d;"></div>
         </div>

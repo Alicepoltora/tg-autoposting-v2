@@ -1140,6 +1140,7 @@ def get_autofill_state(uid):
     return autofill_states[uid]
 
 async def _do_autofill(uid: int):
+    from telethon import events as tg_events
     from telethon.errors import FloodWaitError
     af = get_autofill_state(uid)
     state = get_auth_state(uid)
@@ -1171,7 +1172,7 @@ async def _do_autofill(uid: int):
     lookback_hours = max(0, int(config.get("lookback_hours", 0)))
     check_interval = max(1, int(config.get("check_interval", 5))) * 60
 
-    # ── Resolve target entity once (handles invite links too) ──
+    # ── Resolve target entity once ──
     try:
         tgt_entity = await asyncio.wait_for(client.get_entity(target), timeout=20)
         logger.info(f"Autofill target resolved: {target}")
@@ -1179,150 +1180,204 @@ async def _do_autofill(uid: int):
         af.update({"status": "error", "error": f"Не удалось найти целевой канал: {e}", "running": False})
         return
 
-    # ── Init last_ids for new sources ──
+    # ── Resolve source entities + init last_ids ──
     last_ids = read_autofill_last_ids(uid)
+    src_entity_map = {}   # "source_str" -> entity
+    src_id_to_name = {}   # entity.id (int) -> "source_str"
     for source in sources:
-        if source not in last_ids:
-            try:
-                entity = await asyncio.wait_for(client.get_entity(source), timeout=15)
+        try:
+            entity = await asyncio.wait_for(client.get_entity(source), timeout=15)
+            src_entity_map[source] = entity
+            src_id_to_name[entity.id] = source
+            if source not in last_ids:
                 if lookback_hours > 0:
-                    # Find last message before the lookback cutoff → we'll forward everything after it
                     cutoff = datetime.now() - timedelta(hours=lookback_hours)
                     msgs_before = await client.get_messages(entity, limit=1, offset_date=cutoff)
                     last_ids[source] = msgs_before[0].id if msgs_before else 0
                     logger.info(f"Autofill init {source}: lookback {lookback_hours}h, start_id={last_ids[source]}")
                 else:
-                    # Default: start from current latest (only forward future posts)
                     msgs = await client.get_messages(entity, limit=1)
                     last_ids[source] = msgs[0].id if msgs else 0
                     logger.info(f"Autofill init {source}: latest_id={last_ids[source]}")
-            except Exception as e:
-                logger.warning(f"Could not init source {source}: {e}")
-                last_ids[source] = 0
+        except Exception as e:
+            logger.warning(f"Autofill: could not resolve source {source}: {e}")
     write_autofill_last_ids(uid, last_ids)
 
     af.update({"status": "running", "running": True, "error": None, "forwarded": 0, "skipped": 0, "check_count": 0})
-    logger.info(f"Autofill started uid={uid} sources={sources} target={target} interval={check_interval}s lookback={lookback_hours}h")
+
+    # ── Helper: process one message and forward ──
+    async def process_and_forward(msg, source_name: str, src_ent):
+        cfg = read_autofill_config(uid)
+        do_translate = cfg.get("translate", False)
+        rules       = cfg.get("rules", [])
+        quick_rules = cfg.get("quick_rules", {})
+
+        if msg.grouped_id:   # skip album parts (handled as single items)
+            return False
+
+        text = msg.text or ""
+        modified = bool(rules or do_translate or quick_rules)
+
+        should_skip = False
+        if quick_rules:
+            text, should_skip = apply_quick_rules(text, quick_rules)
+        if should_skip:
+            af["skipped"] += 1
+            ids = read_autofill_last_ids(uid)
+            ids[source_name] = msg.id
+            write_autofill_last_ids(uid, ids)
+            return True  # processed (skipped)
+
+        if rules and text:
+            text = apply_autofill_rules(text, rules)
+
+        if do_translate and text:
+            text = await asyncio.get_event_loop().run_in_executor(None, translate_text, text)
+
+        if not text and not msg.media:
+            ids = read_autofill_last_ids(uid)
+            ids[source_name] = msg.id
+            write_autofill_last_ids(uid, ids)
+            return True
+
+        try:
+            if msg.media and not modified:
+                await asyncio.wait_for(client.forward_messages(tgt_entity, msg, src_ent), timeout=30)
+            elif msg.media:
+                await asyncio.wait_for(client.send_file(tgt_entity, msg.media, caption=text or None), timeout=30)
+            elif text:
+                await asyncio.wait_for(client.send_message(tgt_entity, text), timeout=30)
+
+            ids = read_autofill_last_ids(uid)
+            ids[source_name] = msg.id
+            write_autofill_last_ids(uid, ids)
+            af["forwarded"] += 1
+            af["last_activity"] = datetime.now().strftime("%d.%m %H:%M:%S")
+            logger.info(f"Autofill forwarded msg={msg.id} from {source_name}")
+            return True
+        except FloodWaitError as e:
+            logger.warning(f"Autofill FloodWait {e.seconds}s uid={uid}")
+            await asyncio.sleep(e.seconds + 5)
+            return False
+        except Exception as e:
+            logger.warning(f"Autofill forward error uid={uid} src={source_name}: {e}")
+            ids = read_autofill_last_ids(uid)
+            ids[source_name] = msg.id
+            write_autofill_last_ids(uid, ids)
+            return False
+
+    # ── Helper: scan sources for missed messages (used at startup + periodic fallback) ──
+    async def do_scan():
+        cfg = read_autofill_config(uid)
+        scan_sources = cfg.get("sources", [])
+        scan_target  = cfg.get("target", "")
+        if not scan_sources or not scan_target:
+            return
+        nonlocal tgt_entity
+        try:
+            tgt_entity = await asyncio.wait_for(client.get_entity(scan_target), timeout=15)
+        except Exception:
+            pass  # keep using cached
+
+        af["check_count"] += 1
+        cycle_fwd = cycle_skip = 0
+        logger.info(f"Autofill scan #{af['check_count']} uid={uid}: {len(scan_sources)} sources")
+
+        for source in scan_sources:
+            if not af["running"]: break
+            af["current_source"] = source
+            src_ent = src_entity_map.get(source)
+            if src_ent is None:
+                try:
+                    src_ent = await asyncio.wait_for(client.get_entity(source), timeout=15)
+                    src_entity_map[source] = src_ent
+                    src_id_to_name[src_ent.id] = source
+                except Exception as e:
+                    logger.warning(f"Autofill scan: can't resolve {source}: {e}")
+                    continue
+            try:
+                cur_last_ids = read_autofill_last_ids(uid)
+                last_id = cur_last_ids.get(source, 0)
+                new_msgs = []
+                async for msg in client.iter_messages(src_ent, min_id=last_id, limit=50):
+                    if not msg.grouped_id:
+                        new_msgs.append(msg)
+                new_msgs.reverse()
+                logger.info(f"Autofill scan {source}: last_id={last_id}, new={len(new_msgs)}")
+                for msg in new_msgs:
+                    if not af["running"]: break
+                    ok = await process_and_forward(msg, source, src_ent)
+                    if ok:
+                        cycle_fwd += 1
+                    await asyncio.sleep(1)
+            except Exception as e:
+                logger.warning(f"Autofill scan error {source}: {e}")
+
+        af["current_source"] = ""
+        logger.info(f"Autofill scan #{af['check_count']} done: forwarded={cycle_fwd} skipped={cycle_skip}")
+
+    # ── Register NewMessage event handler for instant forwarding ──
+    src_entity_list = list(src_entity_map.values())
+
+    handler_ref = []  # mutable container so we can remove later
+
+    if src_entity_list:
+        @client.on(tg_events.NewMessage(chats=src_entity_list))
+        async def _new_msg_handler(event):
+            if not af["running"]:
+                return
+            source_name = src_id_to_name.get(event.chat_id)
+            if source_name is None:
+                # Try negative-id form (channels are stored as positive internally)
+                source_name = src_id_to_name.get(abs(event.chat_id))
+            if source_name is None:
+                source_name = str(event.chat_id)
+
+            af["current_source"] = source_name
+            try:
+                src_ent = src_entity_map.get(source_name) or event.chat
+                await process_and_forward(event.message, source_name, src_ent)
+            except Exception as e:
+                logger.warning(f"Autofill event handler error: {e}")
+            finally:
+                af["current_source"] = ""
+
+        handler_ref.append(_new_msg_handler)
+        logger.info(f"Autofill event handler registered for {len(src_entity_list)} sources uid={uid}")
+
+    # Initial scan (catches lookback_hours posts + any missed since last_id init)
+    await do_scan()
+
+    logger.info(f"Autofill running uid={uid} sources={sources} target={target} fallback_interval={check_interval}s lookback={lookback_hours}h")
 
     try:
         while af["running"]:
-            # Reload config each cycle so live edits take effect
+            # Periodic fallback scan (catches any messages missed by event handler)
             config = read_autofill_config(uid)
-            sources = config.get("sources", [])
-            target = config.get("target", "")
-            do_translate = config.get("translate", False)
-            rules = config.get("rules", [])
-            quick_rules = config.get("quick_rules", {})
             check_interval = max(1, int(config.get("check_interval", 5))) * 60
 
-            if not sources or not target:
-                af.update({"status": "error", "error": "Конфиг пуст — остановлено", "running": False})
-                return
-
-            af["check_count"] += 1
-            cycle_forwarded = 0
-            cycle_skipped = 0
-            logger.info(f"Autofill check #{af['check_count']} uid={uid}: checking {len(sources)} sources")
-
-            for source in sources:
-                if not af["running"]: break
-                af["current_source"] = source
-                try:
-                    src_entity = await asyncio.wait_for(client.get_entity(source), timeout=15)
-                    # Re-resolve target each cycle in case it changed
-                    try:
-                        tgt_entity = await asyncio.wait_for(client.get_entity(target), timeout=15)
-                    except Exception as e:
-                        logger.warning(f"Autofill target re-resolve failed: {e} — using cached")
-
-                    last_id = last_ids.get(source, 0)
-                    new_msgs = []
-                    async for msg in client.iter_messages(src_entity, min_id=last_id, limit=100):
-                        if not msg.grouped_id:
-                            new_msgs.append(msg)
-                    new_msgs.reverse()  # oldest first
-
-                    logger.info(f"Autofill {source}: last_id={last_id}, new={len(new_msgs)}")
-
-                    for msg in new_msgs:
-                        if not af["running"]: break
-                        try:
-                            text = msg.text or ""
-                            modified = bool(rules or do_translate or quick_rules)
-
-                            # ── Quick rules ──
-                            should_skip = False
-                            if quick_rules:
-                                text, should_skip = apply_quick_rules(text, quick_rules)
-
-                            if should_skip:
-                                last_ids[source] = msg.id
-                                write_autofill_last_ids(uid, last_ids)
-                                cycle_skipped += 1
-                                af["skipped"] += 1
-                                continue
-
-                            # ── Custom regex rules ──
-                            if rules and text:
-                                text = apply_autofill_rules(text, rules)
-
-                            # ── Translation ──
-                            if do_translate and text:
-                                text = await asyncio.get_event_loop().run_in_executor(
-                                    None, translate_text, text)
-
-                            # Skip text-only posts emptied by cleaning
-                            if not text and not msg.media:
-                                last_ids[source] = msg.id
-                                write_autofill_last_ids(uid, last_ids)
-                                continue
-
-                            # ── Forward / send ──
-                            if msg.media and not modified:
-                                await asyncio.wait_for(
-                                    client.forward_messages(tgt_entity, msg, src_entity), timeout=30)
-                            elif msg.media:
-                                await asyncio.wait_for(
-                                    client.send_file(tgt_entity, msg.media, caption=text or None), timeout=30)
-                            elif text:
-                                await asyncio.wait_for(
-                                    client.send_message(tgt_entity, text), timeout=30)
-
-                            last_ids[source] = msg.id
-                            af["forwarded"] += 1
-                            cycle_forwarded += 1
-                            af["last_activity"] = datetime.now().strftime("%d.%m %H:%M:%S")
-                            write_autofill_last_ids(uid, last_ids)
-                            await asyncio.sleep(2)
-
-                        except FloodWaitError as e:
-                            logger.warning(f"Autofill FloodWait {e.seconds}s uid={uid}")
-                            await asyncio.sleep(e.seconds + 5)
-                        except Exception as e:
-                            logger.warning(f"Autofill msg error uid={uid} src={source}: {e}")
-                            last_ids[source] = msg.id
-                            write_autofill_last_ids(uid, last_ids)
-
-                except Exception as e:
-                    logger.warning(f"Autofill source {source} error uid={uid}: {e}")
-
-            logger.info(f"Autofill check #{af['check_count']} done: forwarded={cycle_forwarded} skipped={cycle_skipped}")
-            af["current_source"] = ""
-            af["status"] = "running"
-
-            # Set next check timestamp and wait
             next_check = datetime.now() + timedelta(seconds=check_interval)
             af["next_check_at"] = next_check.strftime("%H:%M:%S")
             for _ in range(check_interval):
                 if not af["running"]: break
                 await asyncio.sleep(1)
+            if not af["running"]: break
             af["next_check_at"] = None
+            await do_scan()
 
     except asyncio.CancelledError:
-        af.update({"status": "stopped", "running": False, "current_source": "", "next_check_at": None})
+        pass
     except Exception as e:
         logger.error(f"Autofill fatal error uid={uid}: {e}")
         af.update({"status": "error", "error": str(e), "running": False, "current_source": "", "next_check_at": None})
+    finally:
+        # Remove event handler
+        for h in handler_ref:
+            try:
+                client.remove_event_handler(h)
+            except Exception:
+                pass
+        af.update({"status": "stopped", "running": False, "current_source": "", "next_check_at": None})
 
     logger.info(f"Autofill stopped uid={uid} forwarded={af['forwarded']} skipped={af['skipped']}")
 
